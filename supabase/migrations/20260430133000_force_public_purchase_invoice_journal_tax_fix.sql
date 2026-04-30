@@ -185,9 +185,7 @@ BEGIN
       0, v_header_total, NEW.supplier_id
     );
 
-    UPDATE public.purchase_invoices
-    SET journal_entry_id = v_je_id
-    WHERE id = NEW.id;
+    NEW.journal_entry_id := v_je_id;
   END IF;
 
   RETURN NEW;
@@ -196,9 +194,11 @@ $$;
 
 -- Rebind triggers explicitly to public functions.
 DROP TRIGGER IF EXISTS trg_post_purchase_invoice_journal ON public.purchase_invoices;
-CREATE TRIGGER trg_post_purchase_invoice_journal
-  AFTER INSERT OR UPDATE ON public.purchase_invoices
-  FOR EACH ROW EXECUTE FUNCTION public.post_purchase_invoice_journal();
+DROP TRIGGER IF EXISTS trg_post_purchase_invoice ON public.purchase_invoices;
+
+CREATE TRIGGER trg_post_purchase_invoice
+BEFORE INSERT OR UPDATE ON public.purchase_invoices
+FOR EACH ROW EXECUTE FUNCTION public.post_purchase_invoice_journal();
 
 DROP TRIGGER IF EXISTS trg_post_purchase_invoice_item_journal ON public.purchase_invoice_items;
 CREATE TRIGGER trg_post_purchase_invoice_item_journal
