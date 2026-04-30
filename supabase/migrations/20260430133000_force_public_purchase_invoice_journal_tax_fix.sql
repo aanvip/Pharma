@@ -85,6 +85,7 @@ DECLARE
   v_account_id UUID;
   v_has_items BOOLEAN;
   v_total_item_net NUMERIC := 0;
+  v_header_total NUMERIC := 0;
 BEGIN
   IF NEW.journal_entry_id IS NOT NULL THEN
     RETURN NEW;
@@ -114,14 +115,16 @@ BEGIN
       WHERE entry_number LIKE 'JE-' || TO_CHAR(NEW.invoice_date, 'YYMM') || '-%'
     )::TEXT, 4, '0');
 
+    v_header_total := v_total_item_net + COALESCE(NEW.tax_amount, 0);
+
     INSERT INTO public.journal_entries (
       entry_number, entry_date, source_module, reference_id, reference_number,
       description, total_debit, total_credit, is_posted, posted_by, created_by
     ) VALUES (
       v_je_number, NEW.invoice_date, 'purchase_invoice', NEW.id, NEW.invoice_number,
       'Purchase Invoice: ' || NEW.invoice_number,
-      CASE WHEN v_has_items THEN v_total_item_net + COALESCE(NEW.tax_amount, 0) ELSE 0 END,
-      NEW.total_amount, true, NEW.created_by, NEW.created_by
+      v_header_total,
+      v_header_total, true, NEW.created_by, NEW.created_by
     ) RETURNING id INTO v_je_id;
 
     IF v_has_items THEN
@@ -130,6 +133,8 @@ BEGIN
         WHERE purchase_invoice_id = NEW.id
         ORDER BY id
       LOOP
+        v_account_id := NULL;
+
         IF v_item.item_type = 'inventory' THEN
           SELECT id INTO v_account_id FROM public.chart_of_accounts WHERE code = '1130' LIMIT 1;
         ELSIF v_item.item_type = 'fixed_asset' THEN
@@ -177,12 +182,10 @@ BEGIN
     ) VALUES (
       v_je_id, v_line_number, v_ap_account_id,
       'A/P - ' || NEW.invoice_number,
-      0, NEW.total_amount, NEW.supplier_id
+      0, v_header_total, NEW.supplier_id
     );
 
-    UPDATE public.purchase_invoices
-    SET journal_entry_id = v_je_id
-    WHERE id = NEW.id;
+    NEW.journal_entry_id := v_je_id;
   END IF;
 
   RETURN NEW;
@@ -191,9 +194,11 @@ $$;
 
 -- Rebind triggers explicitly to public functions.
 DROP TRIGGER IF EXISTS trg_post_purchase_invoice_journal ON public.purchase_invoices;
-CREATE TRIGGER trg_post_purchase_invoice_journal
-  AFTER INSERT OR UPDATE ON public.purchase_invoices
-  FOR EACH ROW EXECUTE FUNCTION public.post_purchase_invoice_journal();
+DROP TRIGGER IF EXISTS trg_post_purchase_invoice ON public.purchase_invoices;
+
+CREATE TRIGGER trg_post_purchase_invoice
+BEFORE INSERT OR UPDATE ON public.purchase_invoices
+FOR EACH ROW EXECUTE FUNCTION public.post_purchase_invoice_journal();
 
 DROP TRIGGER IF EXISTS trg_post_purchase_invoice_item_journal ON public.purchase_invoice_items;
 CREATE TRIGGER trg_post_purchase_invoice_item_journal
