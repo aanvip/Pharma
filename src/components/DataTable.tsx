@@ -7,6 +7,8 @@ interface Column<T> {
   label: string;
   render?: (value: unknown, item: T) => React.ReactNode;
   sortable?: boolean;
+  thClassName?: string;
+  tdClassName?: string;
 }
 
 interface DataTableProps<T> {
@@ -15,6 +17,7 @@ interface DataTableProps<T> {
   onRowClick?: (item: T) => void;
   actions?: (item: T) => React.ReactNode;
   loading?: boolean;
+  tableClassName?: string;
 }
 
 export function DataTable<T extends Record<string, unknown>>({
@@ -23,6 +26,7 @@ export function DataTable<T extends Record<string, unknown>>({
   onRowClick,
   actions,
   loading,
+  tableClassName,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(
@@ -111,13 +115,13 @@ export function DataTable<T extends Record<string, unknown>>({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className={tableClassName || 'w-full'}>
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${column.thClassName || ''}`}
                 >
                   {column.sortable ? (
                     <button
@@ -165,7 +169,7 @@ export function DataTable<T extends Record<string, unknown>>({
                   className={onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}
                 >
                   {columns.map((column) => (
-                    <td key={column.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td key={column.key} className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${column.tdClassName || ''}`}>
                       {column.render ? column.render(item[column.key], item) : item[column.key]}
                     </td>
                   ))}

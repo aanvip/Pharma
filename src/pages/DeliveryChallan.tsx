@@ -1093,6 +1093,8 @@ export function DeliveryChallan() {
     {
       key: 'so_dc_link',
       label: 'Linked Docs',
+      thClassName: 'min-w-[130px]',
+      tdClassName: 'min-w-[130px]',
       render: (_value: any, challan: DeliveryChallan) => (
         <LinkedDocsCell
           sos={(challan as any).linked_so_number ? [{ id: challan.sales_order_id || '', number: (challan as any).linked_so_number, type: 'so' }] : []}
@@ -1217,6 +1219,7 @@ export function DeliveryChallan() {
           columns={columns}
           data={challans}
           loading={loading}
+          tableClassName="w-full min-w-[1050px]"
           actions={(challan) => (
             <div className="flex items-center gap-2">
               <button
