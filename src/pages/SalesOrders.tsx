@@ -750,7 +750,29 @@ export default function SalesOrders() {
                       <div className="text-sm text-gray-900">{order.customers?.company_name}</div>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{order.customer_po_number}</div>
+                      <div className="flex items-center gap-1">
+                        <div className="text-sm text-gray-900">{order.customer_po_number}</div>
+                        {order.customer_po_file_url && (
+                          <>
+                            <button
+                              onClick={() => handleViewPO(order.customer_po_file_url!)}
+                              className="text-blue-600 hover:text-blue-800"
+                              title="View uploaded PO"
+                              type="button"
+                            >
+                              <Paperclip className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDownloadPO(order.customer_po_file_url!, order.customer_po_number || 'customer-po')}
+                              className="text-gray-500 hover:text-gray-700"
+                              title="Download uploaded PO"
+                              type="button"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                       <div className="text-xs text-gray-500">{formatDate(order.customer_po_date)}</div>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
@@ -762,10 +784,10 @@ export default function SalesOrders() {
                     <td className="px-4 py-2 whitespace-nowrap text-xs font-medium text-gray-900">{formatCurrency(order.total_amount, order.currency || 'IDR')}</td>
                     <td className="px-3 py-2">
                       <LinkedDocsCell
-                        sos={[{ id: order.id, number: order.so_number, type: 'so' }]}
+                        sos={[]}
                         dcs={(soLinkedChallans.get(order.id) || []).map((dc) => ({ id: dc.id, number: dc.challan_number, type: 'dc' as const }))}
                         invs={(soLinkedInvoices.get(order.id) || []).map((inv) => ({ id: inv.id, number: inv.invoice_number, type: 'inv' as const }))}
-                        onClick={(doc: LinkedDocRef) => { if (doc.type === 'so') handleViewOrder(order); if (doc.type === 'dc') setDocPreview({ type: 'dc', data: { id: doc.id, challan_number: doc.number, challan_date: '', status: '', total_amount: 0 } as any }); if (doc.type === 'inv') setDocPreview({ type: 'inv', data: { id: doc.id, invoice_number: doc.number, invoice_date: '', payment_status: '', total_amount: 0 } as any }); }}
+                        onClick={(doc: LinkedDocRef) => { if (doc.type === 'dc') setDocPreview({ type: 'dc', data: { id: doc.id, challan_number: doc.number, challan_date: '', status: '', total_amount: 0 } as any }); if (doc.type === 'inv') setDocPreview({ type: 'inv', data: { id: doc.id, invoice_number: doc.number, invoice_date: '', payment_status: '', total_amount: 0 } as any }); }}
                       />
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
