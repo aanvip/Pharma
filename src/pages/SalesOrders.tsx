@@ -8,6 +8,8 @@ import { FileText, Plus, Search, Filter, Eye, CreditCard as Edit, Trash2, XCircl
 import { Modal } from '../components/Modal';
 import SalesOrderForm from '../components/SalesOrderForm';
 import { ProformaInvoiceView } from '../components/ProformaInvoiceView';
+import { DeliveryChallanView } from '../components/DeliveryChallanView';
+import { InvoiceView } from '../components/InvoiceView';
 import { showToast } from '../components/ToastNotification';
 import { showConfirm } from '../components/ConfirmDialog';
 import { formatDate } from '../utils/dateFormat';
@@ -106,7 +108,10 @@ export default function SalesOrders() {
   const [soStatuses, setSoStatuses] = useState<Map<string, SODeliveryInvoiceStatus>>(new Map());
   const [soLinkedChallans, setSoLinkedChallans] = useState<Map<string, LinkedDeliveryChallan[]>>(new Map());
   const [soLinkedInvoices, setSoLinkedInvoices] = useState<Map<string, LinkedSalesInvoice[]>>(new Map());
-  const [docPreview, setDocPreview] = useState<{ type: 'dc' | 'inv'; data: LinkedDeliveryChallan | LinkedSalesInvoice } | null>(null);
+  const [linkedChallanPreview, setLinkedChallanPreview] = useState<any | null>(null);
+  const [linkedChallanItems, setLinkedChallanItems] = useState<any[]>([]);
+  const [linkedInvoicePreview, setLinkedInvoicePreview] = useState<any | null>(null);
+  const [linkedInvoiceItems, setLinkedInvoiceItems] = useState<any[]>([]);
 
   useEffect(() => {
     fetchSalesOrders();
@@ -211,6 +216,32 @@ export default function SalesOrders() {
     } catch (err) {
       console.error('Error fetching linked SO docs:', err);
     }
+  };
+
+
+  const openLinkedChallanView = async (challanId: string) => {
+    const [{ data: challan }, { data: items }] = await Promise.all([
+      supabase.from('delivery_challans').select('*, customers(company_name, address, city, phone, pbf_license)').eq('id', challanId).maybeSingle(),
+      supabase.from('delivery_challan_items').select('*, products(product_name, product_code, unit), batches(batch_number, expiry_date, packaging_details)').eq('challan_id', challanId)
+    ]);
+    if (!challan) return;
+    setLinkedChallanPreview(challan);
+    setLinkedChallanItems(items || []);
+  };
+
+  const openLinkedInvoiceView = async (invoiceId: string) => {
+    const { data: invoice } = await supabase
+      .from('sales_invoices')
+      .select('*, customers(company_name, address, city, phone, npwp, pharmacy_license, gst_vat_type)')
+      .eq('id', invoiceId)
+      .maybeSingle();
+    if (!invoice) return;
+    const { data: items } = await supabase
+      .from('sales_invoice_items')
+      .select('*, products(product_name, product_code, unit), batches(batch_number, expiry_date, packaging_details), delivery_challan_items(id, challan_id)')
+      .eq('invoice_id', invoice.id);
+    setLinkedInvoicePreview(invoice);
+    setLinkedInvoiceItems(items || []);
   };
 
   const fetchCustomers = async () => {
@@ -787,7 +818,7 @@ export default function SalesOrders() {
                         sos={[]}
                         dcs={(soLinkedChallans.get(order.id) || []).map((dc) => ({ id: dc.id, number: dc.challan_number, type: 'dc' as const }))}
                         invs={(soLinkedInvoices.get(order.id) || []).map((inv) => ({ id: inv.id, number: inv.invoice_number, type: 'inv' as const }))}
-                        onClick={(doc: LinkedDocRef) => { if (doc.type === 'dc') setDocPreview({ type: 'dc', data: { id: doc.id, challan_number: doc.number, challan_date: '', status: '', total_amount: 0 } as any }); if (doc.type === 'inv') setDocPreview({ type: 'inv', data: { id: doc.id, invoice_number: doc.number, invoice_date: '', payment_status: '', total_amount: 0 } as any }); }}
+                        onClick={(doc: LinkedDocRef) => { if (doc.type === 'dc') openLinkedChallanView(doc.id); if (doc.type === 'inv') openLinkedInvoiceView(doc.id); }}
                       />
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
@@ -1105,25 +1136,28 @@ export default function SalesOrders() {
           }}
         />
       )}
-      {docPreview && (
-        <Modal isOpen={!!docPreview} onClose={() => setDocPreview(null)} title={docPreview.type === 'dc' ? 'Delivery Challan Details' : 'Sales Invoice Details'}>
-          {docPreview.type === 'dc' ? (
-            <div className="space-y-2 text-sm">
-              <div><span className="font-semibold">DC Number:</span> {(docPreview.data as LinkedDeliveryChallan).challan_number}</div>
-              <div><span className="font-semibold">Date:</span> {formatDate((docPreview.data as LinkedDeliveryChallan).challan_date)}</div>
-              <div><span className="font-semibold">Status:</span> {(docPreview.data as LinkedDeliveryChallan).status}</div>
-              <div><span className="font-semibold">Amount:</span> {formatCurrency((docPreview.data as LinkedDeliveryChallan).total_amount, 'IDR')}</div>
-            </div>
-          ) : (
-            <div className="space-y-2 text-sm">
-              <div><span className="font-semibold">Invoice Number:</span> {(docPreview.data as LinkedSalesInvoice).invoice_number}</div>
-              <div><span className="font-semibold">Date:</span> {formatDate((docPreview.data as LinkedSalesInvoice).invoice_date)}</div>
-              <div><span className="font-semibold">Payment:</span> {(docPreview.data as LinkedSalesInvoice).payment_status}</div>
-              <div><span className="font-semibold">Amount:</span> {formatCurrency((docPreview.data as LinkedSalesInvoice).total_amount, 'IDR')}</div>
-            </div>
-          )}
-        </Modal>
+      {linkedChallanPreview && (
+        <DeliveryChallanView
+          challan={linkedChallanPreview}
+          items={linkedChallanItems}
+          onClose={() => {
+            setLinkedChallanPreview(null);
+            setLinkedChallanItems([]);
+          }}
+        />
       )}
+
+      {linkedInvoicePreview && (
+        <InvoiceView
+          invoice={linkedInvoicePreview}
+          items={linkedInvoiceItems}
+          onClose={() => {
+            setLinkedInvoicePreview(null);
+            setLinkedInvoiceItems([]);
+          }}
+        />
+      )}
+
       </div>
     </Layout>
   );
