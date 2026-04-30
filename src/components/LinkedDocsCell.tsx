@@ -1,23 +1,31 @@
 import { LinkedDocRef } from '../utils/linkedDocuments';
 
-export function LinkedDocsCell({ sos, dcs, invs, onClick }: { sos: LinkedDocRef[]; dcs: LinkedDocRef[]; invs: LinkedDocRef[]; onClick: (d: LinkedDocRef) => void }) {
-  const hasAnyDocs = sos.length > 0 || dcs.length > 0 || invs.length > 0;
-
+export function LinkedDocsCell({ sos, dcs, invs, onClick, show = { so: true, dc: true, inv: true } }: { sos: LinkedDocRef[]; dcs: LinkedDocRef[]; invs: LinkedDocRef[]; onClick: (d: LinkedDocRef) => void; show?: { so?: boolean; dc?: boolean; inv?: boolean } }) {
   const row = (label: string, docs: LinkedDocRef[], color: string) => (
-    <div className="flex flex-wrap items-center gap-x-1 gap-y-0 text-[11px] leading-4">
-      <span className="text-gray-500 font-medium">{label}:</span>
-      {docs.map((d) => (
-        <button key={d.id} onClick={() => onClick(d)} className={`${color} hover:underline p-0 m-0`} type="button">{d.number}</button>
-      ))}
+    <div className="grid grid-cols-[30px_1fr] items-start gap-x-1 text-[11px] leading-4">
+      <span className="text-gray-500">{label}:</span>
+      <div className="min-w-0">
+        {docs.length === 0 ? (
+          <span className="text-gray-400">—</span>
+        ) : (
+          <div className="flex flex-wrap gap-x-1">
+            {docs.map((d, idx) => (
+              <span key={d.id}>
+                <button onClick={() => onClick(d)} className={`${color} hover:underline p-0 m-0 text-[11px] leading-4`} type="button">{d.number}</button>
+                {idx < docs.length - 1 && <span className="text-gray-400">,</span>}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 
   return (
-    <div className="space-y-0.5 py-0.5">
-      {sos.length > 0 && row('SO', sos, 'text-blue-700')}
-      {dcs.length > 0 && row('DC', dcs, 'text-orange-700')}
-      {invs.length > 0 && row('INV', invs, 'text-blue-700')}
-      {!hasAnyDocs && <span className="text-[11px] leading-4 text-gray-400">—</span>}
+    <div className="space-y-0.5 py-0.5 text-[11px] leading-4">
+      {show.so !== false && row('SO', sos, 'text-blue-700')}
+      {show.dc !== false && row('DC', dcs, 'text-orange-700')}
+      {show.inv !== false && row('INV', invs, 'text-blue-700')}
     </div>
   );
 }

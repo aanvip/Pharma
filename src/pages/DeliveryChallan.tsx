@@ -3,6 +3,8 @@ import { Layout } from '../components/Layout';
 import { DataTable } from '../components/DataTable';
 import { Modal } from '../components/Modal';
 import { DeliveryChallanView } from '../components/DeliveryChallanView';
+import { InvoiceView } from '../components/InvoiceView';
+import { ProformaInvoiceView } from '../components/ProformaInvoiceView';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -129,6 +131,9 @@ export function DeliveryChallan() {
   const [salesOrders, setSalesOrders] = useState<any[]>([]);
   const approvalOperationIdsRef = useRef<Record<string, string>>({});
   const [soReservations, setSoReservations] = useState<Map<string, number>>(new Map());
+  const [linkedInvoicePreview, setLinkedInvoicePreview] = useState<any | null>(null);
+  const [linkedInvoiceItems, setLinkedInvoiceItems] = useState<any[]>([]);
+  const [linkedSOPreview, setLinkedSOPreview] = useState<any | null>(null);
   const [items, setItems] = useState<Omit<ChallanItem, 'id'>[]>([{
     product_id: '',
     batch_id: '',
@@ -269,6 +274,31 @@ export function DeliveryChallan() {
     setSelectedChallan(challan);
     setChallanItems(items);
     setViewModalOpen(true);
+  };
+
+  const openSalesOrderPreview = async (soId: string) => {
+    if (!soId) return;
+    const { data } = await supabase
+      .from('sales_orders')
+      .select('*, customers(*), sales_order_items(*, products(id, product_name, product_code, unit))')
+      .eq('id', soId)
+      .maybeSingle();
+    if (data) setLinkedSOPreview(data);
+  };
+
+  const openInvoicePreview = async (invoiceNumber: string) => {
+    const { data: invoice } = await supabase
+      .from('sales_invoices')
+      .select('*, customers(company_name, address, city, phone, npwp, pharmacy_license, gst_vat_type)')
+      .eq('invoice_number', invoiceNumber)
+      .maybeSingle();
+    if (!invoice) return;
+    const { data: items } = await supabase
+      .from('sales_invoice_items')
+      .select('*, products(product_name, product_code, unit), batches(batch_number, expiry_date, packaging_details), delivery_challan_items(id, challan_id)')
+      .eq('invoice_id', invoice.id);
+    setLinkedInvoicePreview(invoice);
+    setLinkedInvoiceItems(items || []);
   };
 
   const generateNextChallanNumber = async () => {
@@ -1068,7 +1098,11 @@ export function DeliveryChallan() {
           sos={(challan as any).linked_so_number ? [{ id: challan.sales_order_id || '', number: (challan as any).linked_so_number, type: 'so' }] : []}
           dcs={[]}
           invs={((challan as any).linked_invoices || []).map((n: string, i: number) => ({ id: `${challan.id}-${i}`, number: n, type: 'inv' as const }))}
-          onClick={(doc: LinkedDocRef) => { if (doc.type === 'dc') openChallanPreview(challan); }}
+          show={{ dc: false }}
+          onClick={(doc: LinkedDocRef) => {
+            if (doc.type === 'so') openSalesOrderPreview(doc.id);
+            if (doc.type === 'inv') openInvoicePreview(doc.number);
+          }}
         />
       )
     },
@@ -1586,6 +1620,23 @@ export function DeliveryChallan() {
             items={challanItems}
             onClose={() => setViewModalOpen(false)}
             companySettings={companySettings}
+          />
+        )}
+        {linkedSOPreview && (
+          <ProformaInvoiceView
+            salesOrder={linkedSOPreview}
+            items={linkedSOPreview.sales_order_items || []}
+            onClose={() => setLinkedSOPreview(null)}
+          />
+        )}
+        {linkedInvoicePreview && (
+          <InvoiceView
+            invoice={linkedInvoicePreview}
+            items={linkedInvoiceItems}
+            onClose={() => {
+              setLinkedInvoicePreview(null);
+              setLinkedInvoiceItems([]);
+            }}
           />
         )}
 
