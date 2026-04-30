@@ -1330,6 +1330,8 @@ export function Sales() {
     {
       key: 'so_dc_link',
       label: 'Linked Docs',
+      thClassName: 'min-w-[150px]',
+      tdClassName: 'min-w-[150px]',
       render: (_value: any, inv: SalesInvoice) => (
         <LinkedDocsCell
           sos={inv.sales_order?.so_number ? [{ id: inv.sales_order_id || '', number: inv.sales_order.so_number, type: 'so' }] : []}
@@ -1346,6 +1348,7 @@ export function Sales() {
     {
       key: 'due_date',
       label: 'Due Date',
+      thClassName: 'min-w-[120px]',
       render: (value: any, inv: SalesInvoice) => {
         if (!inv.due_date || inv.payment_status === 'paid') {
           return <span className="text-gray-400">—</span>;
@@ -1453,6 +1456,7 @@ export function Sales() {
           columns={columns}
           data={invoices}
           loading={loading}
+          tableClassName="w-full min-w-[1200px]"
           actions={(invoice) => (
             <div className="flex items-center gap-2">
               <button
