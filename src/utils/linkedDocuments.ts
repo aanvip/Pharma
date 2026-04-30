@@ -11,7 +11,7 @@ export async function fetchLinkedDocumentsBundle() {
     supabase.from('sales_orders').select('id, so_number'),
     supabase.from('delivery_challans').select('id, challan_number, sales_order_id'),
     supabase.from('sales_invoices').select('id, invoice_number, sales_order_id, linked_challan_ids'),
-    supabase.from('sales_invoice_items').select('sales_invoice_id, delivery_challan_item_id'),
+    supabase.from('sales_invoice_items').select('invoice_id, delivery_challan_item_id'),
     supabase.from('delivery_challan_items').select('id, challan_id')
   ]);
   if (soRes.error) throw soRes.error;
@@ -32,8 +32,8 @@ export async function fetchLinkedDocumentsBundle() {
     if (!it.delivery_challan_item_id) return;
     const dcId = dcItemToDc.get(it.delivery_challan_item_id);
     if (!dcId) return;
-    if (!invToDcIds.has(it.sales_invoice_id)) invToDcIds.set(it.sales_invoice_id, new Set());
-    invToDcIds.get(it.sales_invoice_id)!.add(dcId);
+    if (!invToDcIds.has(it.invoice_id)) invToDcIds.set(it.invoice_id, new Set());
+    invToDcIds.get(it.invoice_id)!.add(dcId);
   });
 
   const soMap = new Map<string, LinkedDocsBySo>();
