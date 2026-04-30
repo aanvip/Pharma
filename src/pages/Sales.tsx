@@ -48,7 +48,6 @@ interface SalesInvoice {
     challan_number: string;
     challan_date: string;
   }>;
-  fly_days?: number | null;
 }
 
 interface SOItemOption {
@@ -346,17 +345,12 @@ export function Sales() {
             ? supabase.from('delivery_challans').select('id, challan_number, challan_date').in('id', inv.linked_challan_ids)
             : Promise.resolve({ data: [] })
         ]);
-        const firstChallanDate = (dcRes.data || [])[0]?.challan_date;
-        const flyDays = (soRes.data?.order_date && firstChallanDate)
-          ? Math.ceil((new Date(firstChallanDate).getTime() - new Date(soRes.data.order_date).getTime()) / (1000 * 60 * 60 * 24))
-          : null;
         return {
           ...inv,
           paid_amount: paidAmount,
           balance_amount: balance,
           sales_order: soRes.data || null,
-          linked_challans: dcRes.data || [],
-          fly_days: flyDays
+          linked_challans: dcRes.data || []
         };
       }));
 
@@ -1292,7 +1286,7 @@ export function Sales() {
       key: 'total_amount',
       label: t('common.total'),
       render: (value: any, inv: SalesInvoice) => (
-        <span className="font-medium">Rp {inv.total_amount.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+        <span className="font-medium text-sm">Rp {inv.total_amount.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
       )
     },
     {
@@ -1316,33 +1310,19 @@ export function Sales() {
         <span className={`font-medium ${
           (inv.balance_amount || 0) === 0 ? 'text-gray-400' : 'text-orange-600'
         }`}>
-          Rp {(inv.balance_amount || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          Rp {(inv.balance_amount || 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
         </span>
       )
     },
     {
-      key: 'fly_days',
-      label: 'Fly Days',
+      key: 'so_dc_link',
+      label: 'SO/DC',
       render: (_value: any, inv: SalesInvoice) => (
-        <div className="space-y-1">
-          <div className="text-xs text-gray-700 font-medium">
-            {inv.fly_days === null || inv.fly_days === undefined ? '—' : `${inv.fly_days} day(s)`}
-          </div>
-          {inv.sales_order?.so_number && (
-            <div className="text-xs">
-              <span className="inline-block px-2 py-0.5 rounded bg-blue-50 text-blue-700">SO: {inv.sales_order.so_number}</span>
-            </div>
-          )}
-          {inv.linked_challans?.map((dc) => (
-            <button
-              key={dc.id}
-              type="button"
-              onClick={() => handleFlyChallanClick(dc.id)}
-              className="block text-xs px-2 py-0.5 rounded bg-orange-50 text-orange-700 hover:underline"
-            >
-              DC: {dc.challan_number}
-            </button>
-          ))}
+        <div className="space-y-1 text-xs">
+          <div className="text-blue-700 font-medium">SO: {inv.sales_order?.so_number || '—'}</div>
+          {inv.linked_challans?.length ? inv.linked_challans.map((dc) => (
+            <button key={dc.id} type="button" onClick={() => handleFlyChallanClick(dc.id)} className="block text-orange-700 hover:underline">DC: {dc.challan_number}</button>
+          )) : <div className="text-gray-400">DC: —</div>}
         </div>
       )
     },
