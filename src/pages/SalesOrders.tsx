@@ -696,7 +696,7 @@ export default function SalesOrders() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PO Number</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SO Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivery Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Docs</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Order Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -734,9 +734,7 @@ export default function SalesOrders() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {order.expected_delivery_date ? formatDate(order.expected_delivery_date) : '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {formatCurrency(order.total_amount, order.currency || 'IDR')}
-                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-xs font-medium text-gray-900">{formatCurrency(order.total_amount, order.currency || 'IDR')}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center justify-center">
                         {order.customer_po_file_url ? (
