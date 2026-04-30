@@ -73,6 +73,8 @@ interface SalesOrder {
   customers?: Customer;
   sales_order_items?: SalesOrderItem[];
 }
+interface LinkedDeliveryChallan { id: string; challan_number: string; challan_date: string; status: string; total_amount: number; }
+interface LinkedSalesInvoice { id: string; invoice_number: string; invoice_date: string; payment_status: string; total_amount: number; }
 
 export default function SalesOrders() {
   const { user, profile } = useAuth();
@@ -100,6 +102,9 @@ export default function SalesOrders() {
   const [showProformaModal, setShowProformaModal] = useState(false);
   const [proformaOrder, setProformaOrder] = useState<SalesOrder | null>(null);
   const [soStatuses, setSoStatuses] = useState<Map<string, SODeliveryInvoiceStatus>>(new Map());
+  const [soLinkedChallans, setSoLinkedChallans] = useState<Map<string, LinkedDeliveryChallan[]>>(new Map());
+  const [soLinkedInvoices, setSoLinkedInvoices] = useState<Map<string, LinkedSalesInvoice[]>>(new Map());
+  const [docPreview, setDocPreview] = useState<{ type: 'dc' | 'inv'; data: LinkedDeliveryChallan | LinkedSalesInvoice } | null>(null);
 
   useEffect(() => {
     fetchSalesOrders();
@@ -180,11 +185,41 @@ export default function SalesOrders() {
       if (error) throw error;
       setSalesOrders(data || []);
       fetchSOStatuses((data || []).map((o: SalesOrder) => o.id));
+      fetchLinkedDocuments((data || []).map((o: SalesOrder) => o.id));
     } catch (error: any) {
       console.error('Error fetching sales orders:', error.message);
       showToast({ type: 'error', title: 'Error', message: t('errors.failedToLoadSalesOrders') });
     } finally {
       setLoading(false);
+    }
+  };
+  const fetchLinkedDocuments = async (orderIds: string[]) => {
+    if (orderIds.length === 0) return;
+    try {
+      const [{ data: dcRows, error: dcError }, { data: invRows, error: invError }] = await Promise.all([
+        supabase.from('delivery_challans').select('id, challan_number, challan_date, status, total_amount, sales_order_id').in('sales_order_id', orderIds),
+        supabase.from('sales_invoices').select('id, invoice_number, invoice_date, payment_status, total_amount, sales_order_id').in('sales_order_id', orderIds),
+      ]);
+      if (dcError) throw dcError;
+      if (invError) throw invError;
+      const dcMap = new Map<string, LinkedDeliveryChallan[]>();
+      (dcRows || []).forEach((row: any) => {
+        const key = row.sales_order_id;
+        const items = dcMap.get(key) || [];
+        items.push({ id: row.id, challan_number: row.challan_number, challan_date: row.challan_date, status: row.status, total_amount: row.total_amount || 0 });
+        dcMap.set(key, items);
+      });
+      const invMap = new Map<string, LinkedSalesInvoice[]>();
+      (invRows || []).forEach((row: any) => {
+        const key = row.sales_order_id;
+        const items = invMap.get(key) || [];
+        items.push({ id: row.id, invoice_number: row.invoice_number, invoice_date: row.invoice_date, payment_status: row.payment_status, total_amount: row.total_amount || 0 });
+        invMap.set(key, items);
+      });
+      setSoLinkedChallans(dcMap);
+      setSoLinkedInvoices(invMap);
+    } catch (err) {
+      console.error('Error fetching linked SO docs:', err);
     }
   };
 
@@ -697,7 +732,7 @@ export default function SalesOrders() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SO Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivery Date</th>
                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Docs</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SO/DC/INV</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Order Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
@@ -736,19 +771,14 @@ export default function SalesOrders() {
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap text-xs font-medium text-gray-900">{formatCurrency(order.total_amount, order.currency || 'IDR')}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center justify-center">
-                        {order.customer_po_file_url ? (
-                          <button
-                            onClick={() => handleViewPO(order.customer_po_file_url!)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100 transition"
-                            title="View Customer PO"
-                          >
-                            <FileText className="w-4 h-4" />
-                            <span className="text-sm font-medium">1</span>
-                          </button>
-                        ) : (
-                          <span className="text-gray-400 text-sm">-</span>
-                        )}
+                      <div className="space-y-1 text-xs">
+                        <button type="button" onClick={() => handleViewOrder(order)} className="block text-blue-700 font-medium hover:underline">SO: {order.so_number}</button>
+                        {(soLinkedChallans.get(order.id) || []).length > 0 ? (soLinkedChallans.get(order.id) || []).map((dc) => (
+                          <button key={dc.id} type="button" onClick={() => setDocPreview({ type: 'dc', data: dc })} className="block text-orange-700 hover:underline">DC: {dc.challan_number}</button>
+                        )) : <div className="text-gray-400">DC: —</div>}
+                        {(soLinkedInvoices.get(order.id) || []).length > 0 ? (soLinkedInvoices.get(order.id) || []).map((inv) => (
+                          <button key={inv.id} type="button" onClick={() => setDocPreview({ type: 'inv', data: inv })} className="block text-green-700 hover:underline">INV: {inv.invoice_number}</button>
+                        )) : <div className="text-gray-400">INV: —</div>}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -1065,6 +1095,25 @@ export default function SalesOrders() {
             setProformaOrder(null);
           }}
         />
+      )}
+      {docPreview && (
+        <Modal isOpen={!!docPreview} onClose={() => setDocPreview(null)} title={docPreview.type === 'dc' ? 'Delivery Challan Details' : 'Sales Invoice Details'}>
+          {docPreview.type === 'dc' ? (
+            <div className="space-y-2 text-sm">
+              <div><span className="font-semibold">DC Number:</span> {(docPreview.data as LinkedDeliveryChallan).challan_number}</div>
+              <div><span className="font-semibold">Date:</span> {formatDate((docPreview.data as LinkedDeliveryChallan).challan_date)}</div>
+              <div><span className="font-semibold">Status:</span> {(docPreview.data as LinkedDeliveryChallan).status}</div>
+              <div><span className="font-semibold">Amount:</span> {formatCurrency((docPreview.data as LinkedDeliveryChallan).total_amount, 'IDR')}</div>
+            </div>
+          ) : (
+            <div className="space-y-2 text-sm">
+              <div><span className="font-semibold">Invoice Number:</span> {(docPreview.data as LinkedSalesInvoice).invoice_number}</div>
+              <div><span className="font-semibold">Date:</span> {formatDate((docPreview.data as LinkedSalesInvoice).invoice_date)}</div>
+              <div><span className="font-semibold">Payment:</span> {(docPreview.data as LinkedSalesInvoice).payment_status}</div>
+              <div><span className="font-semibold">Amount:</span> {formatCurrency((docPreview.data as LinkedSalesInvoice).total_amount, 'IDR')}</div>
+            </div>
+          )}
+        </Modal>
       )}
       </div>
     </Layout>
