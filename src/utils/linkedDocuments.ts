@@ -1,0 +1,66 @@
+import { supabase } from '../lib/supabase';
+
+export interface LinkedDocRef { id: string; number: string; type: 'so' | 'dc' | 'inv'; }
+
+export interface LinkedDocsBySo { soId: string; sos: LinkedDocRef[]; dcs: LinkedDocRef[]; invs: LinkedDocRef[] }
+export interface LinkedDocsByDc { dcId: string; sos: LinkedDocRef[]; dcs: LinkedDocRef[]; invs: LinkedDocRef[] }
+export interface LinkedDocsByInv { invId: string; sos: LinkedDocRef[]; dcs: LinkedDocRef[]; invs: LinkedDocRef[] }
+
+export async function fetchLinkedDocumentsBundle() {
+  const [soRes, dcRes, invRes, invItemsRes, dcItemsRes] = await Promise.all([
+    supabase.from('sales_orders').select('id, so_number'),
+    supabase.from('delivery_challans').select('id, challan_number, sales_order_id'),
+    supabase.from('sales_invoices').select('id, invoice_number, sales_order_id, linked_challan_ids'),
+    supabase.from('sales_invoice_items').select('sales_invoice_id, delivery_challan_item_id').not('delivery_challan_item_id', 'is', null),
+    supabase.from('delivery_challan_items').select('id, challan_id')
+  ]);
+  if (soRes.error) throw soRes.error;
+  if (dcRes.error) throw dcRes.error;
+  if (invRes.error) throw invRes.error;
+  if (invItemsRes.error) throw invItemsRes.error;
+  if (dcItemsRes.error) throw dcItemsRes.error;
+
+  const soById = new Map((soRes.data || []).map((s: any) => [s.id, s.so_number]));
+  const dcById = new Map((dcRes.data || []).map((d: any) => [d.id, d]));
+  const dcItemToDc = new Map((dcItemsRes.data || []).map((d: any) => [d.id, d.challan_id]));
+
+  const invToDcIds = new Map<string, Set<string>>();
+  (invRes.data || []).forEach((inv: any) => {
+    invToDcIds.set(inv.id, new Set(inv.linked_challan_ids || []));
+  });
+  (invItemsRes.data || []).forEach((it: any) => {
+    const dcId = dcItemToDc.get(it.delivery_challan_item_id);
+    if (!dcId) return;
+    if (!invToDcIds.has(it.sales_invoice_id)) invToDcIds.set(it.sales_invoice_id, new Set());
+    invToDcIds.get(it.sales_invoice_id)!.add(dcId);
+  });
+
+  const soMap = new Map<string, LinkedDocsBySo>();
+  (soRes.data || []).forEach((so: any) => soMap.set(so.id, { soId: so.id, sos: [{ id: so.id, number: so.so_number, type: 'so' }], dcs: [], invs: [] }));
+
+  (dcRes.data || []).forEach((dc: any) => {
+    if (dc.sales_order_id && soMap.has(dc.sales_order_id)) soMap.get(dc.sales_order_id)!.dcs.push({ id: dc.id, number: dc.challan_number, type: 'dc' });
+  });
+  (invRes.data || []).forEach((inv: any) => {
+    if (inv.sales_order_id && soMap.has(inv.sales_order_id)) soMap.get(inv.sales_order_id)!.invs.push({ id: inv.id, number: inv.invoice_number, type: 'inv' });
+  });
+
+  const dcMap = new Map<string, LinkedDocsByDc>();
+  (dcRes.data || []).forEach((dc: any) => {
+    const invs: LinkedDocRef[] = [];
+    (invRes.data || []).forEach((inv: any) => {
+      if (invToDcIds.get(inv.id)?.has(dc.id)) invs.push({ id: inv.id, number: inv.invoice_number, type: 'inv' });
+    });
+    const sos = dc.sales_order_id && soById.get(dc.sales_order_id) ? [{ id: dc.sales_order_id, number: soById.get(dc.sales_order_id)!, type: 'so' as const }] : [];
+    dcMap.set(dc.id, { dcId: dc.id, sos, dcs: [], invs });
+  });
+
+  const invMap = new Map<string, LinkedDocsByInv>();
+  (invRes.data || []).forEach((inv: any) => {
+    const sos = inv.sales_order_id && soById.get(inv.sales_order_id) ? [{ id: inv.sales_order_id, number: soById.get(inv.sales_order_id)!, type: 'so' as const }] : [];
+    const dcs = Array.from(invToDcIds.get(inv.id) || []).map((id) => ({ id, number: dcById.get(id)?.challan_number || id, type: 'dc' as const }));
+    invMap.set(inv.id, { invId: inv.id, sos, dcs, invs: [] });
+  });
+
+  return { soMap, dcMap, invMap };
+}
