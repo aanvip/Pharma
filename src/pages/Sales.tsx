@@ -4,6 +4,7 @@ import { DataTable } from '../components/DataTable';
 import { Modal } from '../components/Modal';
 import { InvoiceView } from '../components/InvoiceView';
 import { DeliveryChallanView } from '../components/DeliveryChallanView';
+import { ProformaInvoiceView } from '../components/ProformaInvoiceView';
 import { DCMultiSelect } from '../components/DCMultiSelect';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -191,6 +192,7 @@ export function Sales() {
   const [editingInvoice, setEditingInvoice] = useState<SalesInvoice | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<SalesInvoice | null>(null);
   const [selectedFlyChallan, setSelectedFlyChallan] = useState<any | null>(null);
+  const [linkedSOPreview, setLinkedSOPreview] = useState<any | null>(null);
   const [selectedFlyChallanItems, setSelectedFlyChallanItems] = useState<any[]>([]);
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
   const [formData, setFormData] = useState({
@@ -371,6 +373,17 @@ export function Sales() {
       setSelectedFlyChallan(challan);
       setSelectedFlyChallanItems(challanItems || []);
     }
+  };
+
+
+  const openLinkedSalesOrderView = async (soId: string) => {
+    if (!soId) return;
+    const { data } = await supabase
+      .from('sales_orders')
+      .select('*, customers(*), sales_order_items(*, products(id, product_name, product_code, unit))')
+      .eq('id', soId)
+      .maybeSingle();
+    if (data) setLinkedSOPreview(data);
   };
 
   const generateNextInvoiceNumber = async () => {
@@ -1325,7 +1338,7 @@ export function Sales() {
           show={{ inv: false }}
           onClick={(doc: LinkedDocRef) => {
             if (doc.type === 'dc') handleFlyChallanClick(doc.id);
-            if (doc.type === 'so') setCurrentPage('sales-orders');
+            if (doc.type === 'so') openLinkedSalesOrderView(doc.id);
           }}
         />
       )
@@ -1938,6 +1951,14 @@ export function Sales() {
             </div>
           </form>
       </Modal>
+
+      {linkedSOPreview && (
+        <ProformaInvoiceView
+          salesOrder={linkedSOPreview}
+          items={linkedSOPreview.sales_order_items || []}
+          onClose={() => setLinkedSOPreview(null)}
+        />
+      )}
 
       {selectedFlyChallan && (
         <DeliveryChallanView
