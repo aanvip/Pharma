@@ -124,7 +124,7 @@ export function Batches() {
   }, []);
 
   const loadCompanySettings = async () => {
-    const { data } = await supabase.from('settings').select('*').maybeSingle();
+    const { data } = await supabase.from('app_settings').select('*').maybeSingle();
     if (data) setCompanySettings(data);
   };
 
