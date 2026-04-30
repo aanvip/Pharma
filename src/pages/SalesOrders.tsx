@@ -11,6 +11,8 @@ import { ProformaInvoiceView } from '../components/ProformaInvoiceView';
 import { showToast } from '../components/ToastNotification';
 import { showConfirm } from '../components/ConfirmDialog';
 import { formatDate } from '../utils/dateFormat';
+import { fetchLinkedDocumentsBundle, LinkedDocRef } from '../utils/linkedDocuments';
+import { LinkedDocsCell } from '../components/LinkedDocsCell';
 
 interface Customer {
   id: string;
@@ -196,25 +198,13 @@ export default function SalesOrders() {
   const fetchLinkedDocuments = async (orderIds: string[]) => {
     if (orderIds.length === 0) return;
     try {
-      const [{ data: dcRows, error: dcError }, { data: invRows, error: invError }] = await Promise.all([
-        supabase.from('delivery_challans').select('id, challan_number, challan_date, status, total_amount, sales_order_id').in('sales_order_id', orderIds),
-        supabase.from('sales_invoices').select('id, invoice_number, invoice_date, payment_status, total_amount, sales_order_id').in('sales_order_id', orderIds),
-      ]);
-      if (dcError) throw dcError;
-      if (invError) throw invError;
+      const { soMap } = await fetchLinkedDocumentsBundle();
       const dcMap = new Map<string, LinkedDeliveryChallan[]>();
-      (dcRows || []).forEach((row: any) => {
-        const key = row.sales_order_id;
-        const items = dcMap.get(key) || [];
-        items.push({ id: row.id, challan_number: row.challan_number, challan_date: row.challan_date, status: row.status, total_amount: row.total_amount || 0 });
-        dcMap.set(key, items);
-      });
       const invMap = new Map<string, LinkedSalesInvoice[]>();
-      (invRows || []).forEach((row: any) => {
-        const key = row.sales_order_id;
-        const items = invMap.get(key) || [];
-        items.push({ id: row.id, invoice_number: row.invoice_number, invoice_date: row.invoice_date, payment_status: row.payment_status, total_amount: row.total_amount || 0 });
-        invMap.set(key, items);
+      orderIds.forEach((id) => {
+        const linked = soMap.get(id);
+        dcMap.set(id, (linked?.dcs || []).map((dc) => ({ id: dc.id, challan_number: dc.number, challan_date: '', status: '', total_amount: 0 })));
+        invMap.set(id, (linked?.invs || []).map((inv) => ({ id: inv.id, invoice_number: inv.number, invoice_date: '', payment_status: '', total_amount: 0 })));
       });
       setSoLinkedChallans(dcMap);
       setSoLinkedInvoices(invMap);
@@ -726,62 +716,59 @@ export default function SalesOrders() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SO Number</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PO Number</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SO Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivery Date</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">SO Number</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">PO Number</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">SO Date</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Delivery Date</th>
                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SO/DC/INV</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Order Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Linked Docs</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Order Status</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={9} className="px-3 py-2 text-center text-gray-500">
                     Loading...
                   </td>
                 </tr>
               ) : filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={9} className="px-3 py-2 text-center text-gray-500">
                     No sales orders found
                   </td>
                 </tr>
               ) : (
                 filteredOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{order.so_number}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{order.customers?.company_name}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{order.customer_po_number}</div>
                       <div className="text-xs text-gray-500">{formatDate(order.customer_po_date)}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(order.so_date)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
                       {order.expected_delivery_date ? formatDate(order.expected_delivery_date) : '-'}
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap text-xs font-medium text-gray-900">{formatCurrency(order.total_amount, order.currency || 'IDR')}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="space-y-1 text-xs">
-                        <button type="button" onClick={() => handleViewOrder(order)} className="block text-blue-700 font-medium hover:underline">SO: {order.so_number}</button>
-                        {(soLinkedChallans.get(order.id) || []).length > 0 ? (soLinkedChallans.get(order.id) || []).map((dc) => (
-                          <button key={dc.id} type="button" onClick={() => setDocPreview({ type: 'dc', data: dc })} className="block text-orange-700 hover:underline">DC: {dc.challan_number}</button>
-                        )) : <div className="text-gray-400">DC: —</div>}
-                        {(soLinkedInvoices.get(order.id) || []).length > 0 ? (soLinkedInvoices.get(order.id) || []).map((inv) => (
-                          <button key={inv.id} type="button" onClick={() => setDocPreview({ type: 'inv', data: inv })} className="block text-green-700 hover:underline">INV: {inv.invoice_number}</button>
-                        )) : <div className="text-gray-400">INV: —</div>}
-                      </div>
+                    <td className="px-3 py-2">
+                      <LinkedDocsCell
+                        sos={[{ id: order.id, number: order.so_number, type: 'so' }]}
+                        dcs={(soLinkedChallans.get(order.id) || []).map((dc) => ({ id: dc.id, number: dc.challan_number, type: 'dc' as const }))}
+                        invs={(soLinkedInvoices.get(order.id) || []).map((inv) => ({ id: inv.id, number: inv.invoice_number, type: 'inv' as const }))}
+                        onClick={(doc: LinkedDocRef) => { if (doc.type === 'so') handleViewOrder(order); if (doc.type === 'dc') setDocPreview({ type: 'dc', data: { id: doc.id, challan_number: doc.number, challan_date: '', status: '', total_amount: 0 } as any }); if (doc.type === 'inv') setDocPreview({ type: 'inv', data: { id: doc.id, invoice_number: doc.number, invoice_date: '', payment_status: '', total_amount: 0 } as any }); }}
+                      />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <div className="flex flex-col items-center gap-1">
                         {getOrderStatusBadge(order)}
                         {order.status === 'pending_approval' && profile?.role === 'admin' && (
@@ -811,7 +798,7 @@ export default function SalesOrders() {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-3 py-2 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleViewOrder(order)}

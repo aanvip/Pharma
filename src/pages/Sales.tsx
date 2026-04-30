@@ -15,6 +15,8 @@ import { Plus, CreditCard as Edit, Trash2, FileText, Eye, FileX } from 'lucide-r
 import { showToast } from '../components/ToastNotification';
 import { showConfirm } from '../components/ConfirmDialog';
 import { formatDate } from '../utils/dateFormat';
+import { fetchLinkedDocumentsBundle, LinkedDocRef } from '../utils/linkedDocuments';
+import { LinkedDocsCell } from '../components/LinkedDocsCell';
 
 interface SalesInvoice {
   id: string;
@@ -337,24 +339,22 @@ export function Sales() {
         const paidAmount = paidData || 0;
         const balance = inv.total_amount - paidAmount;
 
-        const [soRes, dcRes] = await Promise.all([
-          inv.sales_order_id
-            ? supabase.from('sales_orders').select('so_number, order_date').eq('id', inv.sales_order_id).maybeSingle()
-            : Promise.resolve({ data: null }),
-          inv.linked_challan_ids && inv.linked_challan_ids.length > 0
-            ? supabase.from('delivery_challans').select('id, challan_number, challan_date').in('id', inv.linked_challan_ids)
-            : Promise.resolve({ data: [] })
-        ]);
-        return {
-          ...inv,
-          paid_amount: paidAmount,
-          balance_amount: balance,
-          sales_order: soRes.data || null,
-          linked_challans: dcRes.data || []
-        };
+        return { ...inv, paid_amount: paidAmount, balance_amount: balance };
       }));
 
-      setInvoices(invoicesWithPayments);
+
+      const bundle = await fetchLinkedDocumentsBundle();
+      const invoicesWithLinked = invoicesWithPayments.map((inv: any) => {
+        const links = bundle.invMap.get(inv.id);
+        return {
+          ...inv,
+          sales_order: links?.sos?.[0] ? { so_number: links.sos[0].number } : null,
+          linked_challans: (links?.dcs || []).map((d) => ({ id: d.id, challan_number: d.number }))
+        };
+      });
+
+      setInvoices(invoicesWithLinked);
+
     } catch (error) {
       console.error('Error loading invoices:', error);
     } finally {
@@ -1316,14 +1316,14 @@ export function Sales() {
     },
     {
       key: 'so_dc_link',
-      label: 'SO/DC',
+      label: 'Linked Docs',
       render: (_value: any, inv: SalesInvoice) => (
-        <div className="space-y-1 text-xs">
-          <div className="text-blue-700 font-medium">SO: {inv.sales_order?.so_number || '—'}</div>
-          {inv.linked_challans?.length ? inv.linked_challans.map((dc) => (
-            <button key={dc.id} type="button" onClick={() => handleFlyChallanClick(dc.id)} className="block text-orange-700 hover:underline">DC: {dc.challan_number}</button>
-          )) : <div className="text-gray-400">DC: —</div>}
-        </div>
+        <LinkedDocsCell
+          sos={inv.sales_order?.so_number ? [{ id: inv.sales_order_id || '', number: inv.sales_order.so_number, type: 'so' }] : []}
+          dcs={(inv.linked_challans || []).map((dc) => ({ id: dc.id, number: dc.challan_number, type: 'dc' as const }))}
+          invs={[]}
+          onClick={(doc: LinkedDocRef) => { if (doc.type === 'dc') handleFlyChallanClick(doc.id); }}
+        />
       )
     },
     {

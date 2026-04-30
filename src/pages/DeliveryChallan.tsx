@@ -13,6 +13,8 @@ import { Plus, Trash2, Eye, CreditCard as Edit, FileText, CheckCircle, XCircle, 
 import { showToast } from '../components/ToastNotification';
 import { showConfirm } from '../components/ConfirmDialog';
 import { formatDate } from '../utils/dateFormat';
+import { fetchLinkedDocumentsBundle, LinkedDocRef } from '../utils/linkedDocuments';
+import { LinkedDocsCell } from '../components/LinkedDocsCell';
 import { UnlinkedDCReview } from '../components/UnlinkedDCReview';
 
 interface DeliveryChallan {
@@ -242,7 +244,19 @@ export function DeliveryChallan() {
         };
       });
 
-      setChallans(challansWithStatus);
+
+      const bundle = await fetchLinkedDocumentsBundle();
+      const enriched = challansWithStatus.map((c: any) => {
+        const l = bundle.dcMap.get(c.id);
+        return {
+          ...c,
+          linked_so_number: l?.sos?.[0]?.number || c.sales_orders?.so_number || null,
+          linked_invoices: (l?.invs || []).map((i) => i.number)
+        };
+      });
+
+      setChallans(enriched);
+
     } catch (error) {
       console.error('Error loading challans:', error);
     } finally {
@@ -1048,12 +1062,14 @@ export function DeliveryChallan() {
     },
     {
       key: 'so_dc_link',
-      label: 'SO/DC',
+      label: 'Linked Docs',
       render: (_value: any, challan: DeliveryChallan) => (
-        <div className="space-y-1 text-xs">
-          <div className="text-blue-700 font-medium">SO: {challan.sales_orders?.so_number || '—'}</div>
-          <button type="button" onClick={() => openChallanPreview(challan)} className="text-orange-700 hover:underline">DC: {challan.challan_number}</button>
-        </div>
+        <LinkedDocsCell
+          sos={(challan as any).linked_so_number ? [{ id: challan.sales_order_id || '', number: (challan as any).linked_so_number, type: 'so' }] : []}
+          dcs={[]}
+          invs={((challan as any).linked_invoices || []).map((n: string, i: number) => ({ id: `${challan.id}-${i}`, number: n, type: 'inv' as const }))}
+          onClick={(doc: LinkedDocRef) => { if (doc.type === 'dc') openChallanPreview(challan); }}
+        />
       )
     },
     {
