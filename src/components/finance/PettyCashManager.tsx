@@ -352,7 +352,7 @@ export function PettyCashManager({ canManage, onNavigateToFundTransfer, initialV
 
   const loadData = useCallback(async () => {
     try {
-      const [txRes, balanceRes, containersRes, challansRes, bankRes] = await Promise.all([
+      const [txRes, containersRes, challansRes, bankRes] = await Promise.all([
         supabase
           .from('petty_cash_transactions')
           .select(`
@@ -375,9 +375,6 @@ export function PettyCashManager({ canManage, onNavigateToFundTransfer, initialV
           .lte('transaction_date', endDate)
           .order('transaction_date', { ascending: false })
           .order('transaction_number', { ascending: false }),
-
-        supabase.rpc('get_petty_cash_balance_by_date', { start_date: startDate, end_date: endDate }),
-
         supabase
           .from('import_containers')
           .select('id, container_ref')
@@ -402,10 +399,24 @@ export function PettyCashManager({ canManage, onNavigateToFundTransfer, initialV
       ]);
 
       if (txRes.error) throw txRes.error;
-      if (balanceRes.error) throw balanceRes.error;
+
+      let balance = 0;
+      const balanceByDateRes = await supabase.rpc('get_petty_cash_balance_by_date', { start_date: startDate, end_date: endDate });
+
+      if (balanceByDateRes.error) {
+        if (balanceByDateRes.error.code === 'PGRST202') {
+          const legacyBalanceRes = await supabase.rpc('get_petty_cash_balance');
+          if (legacyBalanceRes.error) throw legacyBalanceRes.error;
+          balance = legacyBalanceRes.data || 0;
+        } else {
+          throw balanceByDateRes.error;
+        }
+      } else {
+        balance = balanceByDateRes.data || 0;
+      }
 
       setTransactions(txRes.data || []);
-      setCashBalance(balanceRes.data || 0);
+      setCashBalance(balance);
       setContainers(containersRes.data || []);
       setChallans(challansRes.data || []);
       setBankAccounts(bankRes.data || []);
