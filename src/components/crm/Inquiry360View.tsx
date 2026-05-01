@@ -13,6 +13,9 @@ type Inquiry = {
   offered_price?: number | null;
   offered_price_currency?: string | null;
   assigned_to?: string | null;
+  lead_id?: string | null;
+  customer_id?: string | null;
+  product_id?: string | null;
 };
 
 type TimelineItem = { id: string; type: 'activity'|'email'|'document'; title: string; detail?: string | null; at: string; };
@@ -27,10 +30,14 @@ const isIgnorableSupabaseError = (error: { code?: string; message?: string } | n
   ].includes(error.code || '');
 };
 
+const isDevelopment = import.meta.env.DEV;
+
 const logSupabaseError = (scope: string, error: { code?: string; message?: string } | null) => {
   if (!error) return;
   if (isIgnorableSupabaseError(error)) {
-    console.info(`[Inquiry360View] Optional ${scope} source unavailable: ${error.code ?? 'unknown'}`);
+    if (isDevelopment) {
+      console.info(`[Inquiry360View] Optional ${scope} source unavailable: ${error.code ?? 'unknown'}`);
+    }
     return;
   }
   console.error(`[Inquiry360View] Failed to load ${scope}:`, error);
@@ -57,11 +64,37 @@ export function Inquiry360View({ inquiries }: { inquiries: Inquiry[] }) {
   useEffect(() => {
     const run = async () => {
       if (!selected?.id) return;
-      const [activities, emails, docs] = await Promise.all([
-        supabase.from('crm_activities').select('id,subject,description,follow_up_date,created_at').eq('inquiry_id', selected.id).order('created_at', { ascending: false }).limit(50),
-        supabase.from('crm_email_activities').select('id,subject,email_type,sent_date,created_at,to_email').eq('inquiry_id', selected.id).order('created_at', { ascending: false }).limit(50),
-        supabase.from('crm_product_documents').select('id,document_type,display_name,uploaded_at').eq('inquiry_id', selected.id).order('uploaded_at', { ascending: false }).limit(50),
-      ]);
+      const activityQuery = supabase
+        .from('crm_activities')
+        .select('id,subject,description,follow_up_date,created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (selected.lead_id) {
+        activityQuery.eq('lead_id', selected.lead_id);
+      } else if (selected.customer_id) {
+        activityQuery.eq('customer_id', selected.customer_id);
+      } else {
+        activityQuery.limit(0);
+      }
+
+      const emailQuery = supabase
+        .from('crm_email_activities')
+        .select('id,subject,email_type,sent_date,created_at,to_email')
+        .eq('inquiry_id', selected.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      const documentQuery = selected.product_id
+        ? supabase
+            .from('product_documents')
+            .select('id,document_type,file_name,uploaded_at')
+            .eq('product_id', selected.product_id)
+            .order('uploaded_at', { ascending: false })
+            .limit(50)
+        : Promise.resolve({ data: [], error: null });
+
+      const [activities, emails, docs] = await Promise.all([activityQuery, emailQuery, documentQuery]);
 
       logSupabaseError('activities', activities.error);
       logSupabaseError('emails', emails.error);
@@ -74,7 +107,7 @@ export function Inquiry360View({ inquiries }: { inquiries: Inquiry[] }) {
       const items: TimelineItem[] = [
         ...(activityRows.map((a: any) => ({ id: a.id, type: 'activity' as const, title: a.subject || 'Activity', detail: a.description, at: a.created_at }))),
         ...(emailRows.map((e: any) => ({ id: e.id, type: 'email' as const, title: e.subject || 'Email', detail: `${e.email_type}${e.to_email ? ` → ${Array.isArray(e.to_email) ? e.to_email.join(', ') : e.to_email}` : ''}`, at: e.sent_date || e.created_at }))),
-        ...(documentRows.map((d: any) => ({ id: d.id, type: 'document' as const, title: `${d.document_type}: ${d.display_name}`, at: d.uploaded_at }))),
+        ...(documentRows.map((d: any) => ({ id: d.id, type: 'document' as const, title: `${d.document_type}: ${d.file_name}`, at: d.uploaded_at }))),
       ].sort((a,b) => +new Date(b.at) - +new Date(a.at));
 
       setTimeline(items);
@@ -82,7 +115,7 @@ export function Inquiry360View({ inquiries }: { inquiries: Inquiry[] }) {
       setNextFollowUp(upcoming);
     };
     run();
-  }, [selected?.id]);
+  }, [selected?.customer_id, selected?.id, selected?.lead_id, selected?.product_id]);
 
   const overdue = nextFollowUp ? new Date(nextFollowUp) < new Date() : false;
 
@@ -90,7 +123,19 @@ export function Inquiry360View({ inquiries }: { inquiries: Inquiry[] }) {
     <div className="bg-white border rounded-xl p-3 lg:col-span-1 max-h-[70vh] overflow-auto">
       <h3 className="font-semibold mb-2">Inquiries</h3>
       <div className="space-y-2">
-        {inquiries.map(i => <button key={i.id} onClick={() => setSelectedId(i.id)} className={`w-full text-left p-2 rounded border ${selected?.id===i.id ? 'border-blue-500 bg-blue-50':'border-gray-200'}`}>
+        {inquiries.map(i => <div
+          key={i.id}
+          role="button"
+          tabIndex={0}
+          onClick={() => setSelectedId(i.id)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              setSelectedId(i.id);
+            }
+          }}
+          className={`w-full text-left p-2 rounded border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 ${selected?.id===i.id ? 'border-blue-500 bg-blue-50':'border-gray-200'}`}
+        >
           <div className="text-xs text-gray-500">#{i.inquiry_number}</div>
           <button
             type="button"
@@ -104,7 +149,7 @@ export function Inquiry360View({ inquiries }: { inquiries: Inquiry[] }) {
             {i.company_name}
           </button>
           <div className="text-xs text-gray-600">{i.product_name}</div>
-        </button>)}
+        </div>)}
       </div>
     </div>
 
