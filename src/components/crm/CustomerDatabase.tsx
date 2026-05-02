@@ -4,6 +4,7 @@ import { Users, Upload, Search, CreditCard as Edit, Trash2, Building, Mail, Phon
 import { Modal } from '../Modal';
 import { CustomerInteractionTimeline } from './CustomerInteractionTimeline';
 import { BulkEmailComposer } from './BulkEmailComposer';
+import { StockUpdateEmailComposer } from './StockUpdateEmailComposer';
 
 interface Contact {
   id: string;
@@ -49,6 +50,7 @@ export function CustomerDatabase({ canManage }: CustomerDatabaseProps) {
   const [importing, setImporting] = useState(false);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const [bulkEmailModalOpen, setBulkEmailModalOpen] = useState(false);
+  const [stockUpdateModalOpen, setStockUpdateModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     company_name: '',
@@ -355,6 +357,13 @@ Bio Solutions Ltd,"789 Industrial Zone",Bandung,TRADER,022-5554321,David Chen,08
                 Send Bulk Email ({selectedContacts.size})
               </button>
             )}
+            <button
+              onClick={() => setStockUpdateModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+            >
+              <Send className="w-4 h-4" />
+              Stock Update Email
+            </button>
             <button
               onClick={() => setImportModalOpen(true)}
               className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition"
@@ -886,6 +895,24 @@ Bio Solutions Ltd,"789 Industrial Zone",Bandung,TRADER,022-5554321,David Chen,08
             </div>
           </div>
         )}
+      </Modal>
+
+
+
+      <Modal
+        isOpen={stockUpdateModalOpen}
+        onClose={() => setStockUpdateModalOpen(false)}
+        title="Stock Update Email"
+        size="xl"
+        noPadding
+      >
+        <StockUpdateEmailComposer
+          onClose={() => setStockUpdateModalOpen(false)}
+          onComplete={() => {
+            setStockUpdateModalOpen(false);
+            loadContacts();
+          }}
+        />
       </Modal>
 
       <Modal
