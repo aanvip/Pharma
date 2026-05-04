@@ -326,7 +326,7 @@ export function CAReports() {
 
     const { data: periodTxns } = await supabase
       .from('inventory_transactions')
-      .select('product_id, transaction_date, quantity, transaction_type, reference_type, reference_number')
+      .select('product_id, transaction_date, quantity, transaction_type, reference_type, reference_number, reference_id, notes')
       .gte('transaction_date', dateRange.from)
       .lte('transaction_date', dateRange.to)
       .in('transaction_type', COUNTED_TYPES);
@@ -334,6 +334,22 @@ export function CAReports() {
     const { data: products } = await supabase
       .from('products')
       .select('id, product_code, product_name, unit');
+
+
+    const dcLinkedInvoiceItemIds = new Set<string>();
+    const salesInvoiceItemRefIds = (periodTxns || [])
+      .filter((txn: any) => txn.reference_type === 'sales_invoice_item' && txn.reference_id)
+      .map((txn: any) => txn.reference_id);
+
+    if (salesInvoiceItemRefIds.length > 0) {
+      const { data: dcLinkedItems } = await supabase
+        .from('sales_invoice_items')
+        .select('id')
+        .in('id', salesInvoiceItemRefIds)
+        .not('delivery_challan_item_id', 'is', null);
+
+      (dcLinkedItems || []).forEach((row: any) => dcLinkedInvoiceItemIds.add(row.id));
+    }
 
     const { data: reservations } = await supabase
       .from('stock_reservations')
@@ -368,9 +384,13 @@ export function CAReports() {
       if (productMap.has(txn.product_id)) {
         const prod = productMap.get(txn.product_id);
         const qty = parseFloat(txn.quantity);
+        const isAccountingOnlyDcSale =
+          txn.reference_type === 'sales_invoice_item' &&
+          dcLinkedInvoiceItemIds.has(txn.reference_id);
+
         if (qty > 0) {
           prod.in_qty += qty;
-        } else {
+        } else if (!isAccountingOnlyDcSale) {
           prod.out_qty += Math.abs(qty);
         }
       }
