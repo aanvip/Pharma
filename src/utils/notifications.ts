@@ -9,25 +9,19 @@ interface NotificationParams {
   referenceType?: string;
 }
 
-// Insert notification using ON CONFLICT DO NOTHING — the DB unique index on
-// (user_id, type, message) WHERE is_read=false prevents duplicates even from
-// parallel browser tabs hitting the same interval simultaneously.
+// Uses a DB-side RPC with ON CONFLICT DO NOTHING so duplicates are silently
+// skipped at the database level — no 409 HTTP errors, no console noise.
 export async function createNotification(params: NotificationParams) {
   try {
-    const { error } = await supabase
-      .from('notifications')
-      .insert([{
-        user_id: params.userId,
-        type: params.type,
-        title: params.title,
-        message: params.message,
-        reference_id: params.referenceId || null,
-        reference_type: params.referenceType || null,
-        is_read: false,
-      }], { onConflict: 'user_id,type,message' } as any);
-
-    // 23505 = unique_violation — expected when dedup index blocks a duplicate; not an error
-    if (error && (error as any).code !== '23505') throw error;
+    const { error } = await supabase.rpc('upsert_notification', {
+      p_user_id: params.userId,
+      p_type: params.type,
+      p_title: params.title,
+      p_message: params.message,
+      p_reference_id: params.referenceId || null,
+      p_reference_type: params.referenceType || null,
+    });
+    if (error) throw error;
   } catch (error) {
     console.error('Error creating notification:', error);
   }

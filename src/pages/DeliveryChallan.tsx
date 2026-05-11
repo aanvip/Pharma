@@ -213,7 +213,7 @@ export function DeliveryChallan() {
     try {
       const { data, error } = await supabase
         .from('delivery_challans')
-        .select('*, customers(company_name, address, city, phone), sales_orders(so_number, so_date)')
+        .select('*, customers(company_name, address, city, phone, pbf_license), sales_orders(so_number, so_date)')
         .gte('challan_date', dateRange.startDate)
         .lte('challan_date', dateRange.endDate)
         .order('challan_date', { ascending: false });

@@ -24,16 +24,14 @@ export function GmailSettings() {
 
     const interval = setInterval(() => {
       loadConnection();
-    }, 5000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, []);
 
   const loadConnection = async () => {
     try {
-      console.log('[GmailSettings] === LOADING CONNECTION ===');
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('[GmailSettings] Current user:', user?.id);
       if (!user) return;
 
       const { data, error } = await supabase
@@ -45,14 +43,10 @@ export function GmailSettings() {
         .limit(1)
         .maybeSingle();
 
-      console.log('[GmailSettings] Query result - data:', data);
-      console.log('[GmailSettings] Query result - error:', error);
-
       if (error && error.code !== 'PGRST116') throw error;
       setConnection(data);
-      console.log('[GmailSettings] Connection set:', data?.email_address);
     } catch (error) {
-      console.error('[GmailSettings] Error loading Gmail connection:', error);
+      console.error('Error loading Gmail connection:', error);
     } finally {
       setLoading(false);
     }
@@ -66,12 +60,6 @@ export function GmailSettings() {
       showToast({ type: 'error', title: 'Error', message: 'Gmail integration is not configured. Please add VITE_GOOGLE_CLIENT_ID to your .env file.\n\nSteps:\n1. Go to Google Cloud Console\n2. Create OAuth 2.0 credentials\n3. Add the Client ID to .env file\n4. Restart the dev server\n\nSee GMAIL_SETUP.md for detailed instructions.' });
       return;
     }
-
-    // Show user the redirect URI they need to configure
-    console.log('🔑 Gmail OAuth Configuration:');
-    console.log('Redirect URI:', redirectUri);
-    console.log('\n📋 Add this to Google Cloud Console:');
-    console.log('   https://console.cloud.google.com/apis/credentials');
 
     const confirmed = await showConfirm({
       title: 'Confirm',
