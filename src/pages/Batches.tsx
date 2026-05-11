@@ -588,6 +588,7 @@ export function Batches() {
     let txnQuery = supabase
       .from('inventory_transactions')
       .select('*')
+      .or('metadata->>superseded.is.null,metadata->>superseded.neq.true')
       .order('transaction_date', { ascending: false })
       .order('created_at', { ascending: false });
 
