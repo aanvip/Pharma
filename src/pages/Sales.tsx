@@ -38,6 +38,7 @@ interface SalesInvoice {
   linked_challan_ids?: string[] | null;
   paid_amount?: number;
   balance_amount?: number;
+  product_names?: string;
   customers?: {
     company_name: string;
     gst_vat_type: string;
@@ -355,7 +356,29 @@ export function Sales() {
         };
       });
 
-      setInvoices(invoicesWithLinked);
+      // Fetch product names for all invoices so search by product name works
+      const invoiceIds = invoicesWithLinked.map((inv: any) => inv.id);
+      let productNamesMap = new Map<string, string>();
+      if (invoiceIds.length > 0) {
+        const { data: itemsData } = await supabase
+          .from('sales_invoice_items')
+          .select('invoice_id, products(product_name)')
+          .in('invoice_id', invoiceIds);
+        (itemsData || []).forEach((item: any) => {
+          const existing = productNamesMap.get(item.invoice_id) || '';
+          const name = item.products?.product_name || '';
+          if (name && !existing.includes(name)) {
+            productNamesMap.set(item.invoice_id, existing ? `${existing}, ${name}` : name);
+          }
+        });
+      }
+
+      const invoicesWithProducts = invoicesWithLinked.map((inv: any) => ({
+        ...inv,
+        product_names: productNamesMap.get(inv.id) || ''
+      }));
+
+      setInvoices(invoicesWithProducts);
 
     } catch (error) {
       console.error('Error loading invoices:', error);

@@ -33,6 +33,7 @@ interface DeliveryChallan {
   total_items?: number;
   invoiced_items?: number;
   linked_invoices?: string[];
+  product_names?: string;
   sales_orders?: {
     so_number: string;
     so_date?: string;
@@ -251,7 +252,7 @@ export function DeliveryChallan() {
 
 
       const bundle = await fetchLinkedDocumentsBundle();
-      const enriched = challansWithStatus.map((c: any) => {
+      const enrichedBase = challansWithStatus.map((c: any) => {
         const l = bundle.dcMap.get(c.id);
         return {
           ...c,
@@ -259,6 +260,28 @@ export function DeliveryChallan() {
           linked_invoices: (l?.invs || []).map((i) => i.number)
         };
       });
+
+      // Fetch product names for all challans so search by product name works
+      const challanIds = enrichedBase.map((c: any) => c.id);
+      let productNamesMap = new Map<string, string>();
+      if (challanIds.length > 0) {
+        const { data: itemsData } = await supabase
+          .from('delivery_challan_items')
+          .select('challan_id, products(product_name)')
+          .in('challan_id', challanIds);
+        (itemsData || []).forEach((item: any) => {
+          const existing = productNamesMap.get(item.challan_id) || '';
+          const name = item.products?.product_name || '';
+          if (name && !existing.includes(name)) {
+            productNamesMap.set(item.challan_id, existing ? `${existing}, ${name}` : name);
+          }
+        });
+      }
+
+      const enriched = enrichedBase.map((c: any) => ({
+        ...c,
+        product_names: productNamesMap.get(c.id) || ''
+      }));
 
       setChallans(enriched);
 

@@ -13,6 +13,7 @@ interface StockSummary {
   product_code: string;
   unit: string;
   category: string;
+  min_stock_level: number | null;
   total_current_stock: number;
   reserved_stock: number;
   shortage_quantity: number;
@@ -132,7 +133,9 @@ export function Stock() {
 
   const totalStock = stockSummary.reduce((sum, item) => sum + item.total_current_stock, 0);
   const totalProducts = stockSummary.length;
-  const lowStockProducts = stockSummary.filter(item => item.total_current_stock < 500).length;
+  const lowStockProducts = stockSummary.filter(item =>
+    (item.min_stock_level ?? 0) > 0 && item.total_current_stock < (item.min_stock_level ?? 0)
+  ).length;
   const productsWithNearExpiry = stockSummary.filter(item =>
     item.nearest_expiry_date && isNearExpiry(item.nearest_expiry_date)
   ).length;

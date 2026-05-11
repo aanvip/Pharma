@@ -270,10 +270,15 @@ export default function SalesOrders() {
     let filtered = salesOrders;
 
     if (searchTerm) {
+      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(order =>
-        order.so_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customer_po_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customers?.company_name.toLowerCase().includes(searchTerm.toLowerCase())
+        order.so_number.toLowerCase().includes(term) ||
+        order.customer_po_number.toLowerCase().includes(term) ||
+        order.customers?.company_name.toLowerCase().includes(term) ||
+        order.sales_order_items?.some(item =>
+          item.products?.product_name.toLowerCase().includes(term) ||
+          item.products?.product_code?.toLowerCase().includes(term)
+        )
       );
     }
 
