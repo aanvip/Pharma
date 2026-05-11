@@ -823,6 +823,7 @@ export default function SalesOrders() {
                         sos={[]}
                         dcs={(soLinkedChallans.get(order.id) || []).map((dc) => ({ id: dc.id, number: dc.challan_number, type: 'dc' as const }))}
                         invs={(soLinkedInvoices.get(order.id) || []).map((inv) => ({ id: inv.id, number: inv.invoice_number, type: 'inv' as const }))}
+                        show={{ so: false }}
                         onClick={(doc: LinkedDocRef) => { if (doc.type === 'dc') openLinkedChallanView(doc.id); if (doc.type === 'inv') openLinkedInvoiceView(doc.id); }}
                       />
                     </td>

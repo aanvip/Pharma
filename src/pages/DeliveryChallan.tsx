@@ -1032,7 +1032,13 @@ export function DeliveryChallan() {
   };
 
   const columns = [
-    { key: 'challan_number', label: 'DO Number' },
+    {
+      key: 'challan_number',
+      label: 'DO Number',
+      render: (value: any) => (
+        <span className="text-xs font-medium text-gray-700 tracking-wide">{value}</span>
+      )
+    },
     {
       key: 'customer',
       label: 'Customer',
