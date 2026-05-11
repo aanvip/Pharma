@@ -43,7 +43,22 @@ export async function fetchLinkedDocumentsBundle() {
     if (dc.sales_order_id && soMap.has(dc.sales_order_id)) soMap.get(dc.sales_order_id)!.dcs.push({ id: dc.id, number: dc.challan_number, type: 'dc' });
   });
   (invRes.data || []).forEach((inv: any) => {
-    if (inv.sales_order_id && soMap.has(inv.sales_order_id)) soMap.get(inv.sales_order_id)!.invs.push({ id: inv.id, number: inv.invoice_number, type: 'inv' });
+    const addedToSos = new Set<string>();
+    if (inv.sales_order_id && soMap.has(inv.sales_order_id)) {
+      soMap.get(inv.sales_order_id)!.invs.push({ id: inv.id, number: inv.invoice_number, type: 'inv' });
+      addedToSos.add(inv.sales_order_id);
+    }
+    // Also link invoice to SO through its DCs
+    const linkedDcIds = invToDcIds.get(inv.id);
+    if (linkedDcIds) {
+      linkedDcIds.forEach((dcId) => {
+        const dc = dcById.get(dcId);
+        if (dc?.sales_order_id && soMap.has(dc.sales_order_id) && !addedToSos.has(dc.sales_order_id)) {
+          soMap.get(dc.sales_order_id)!.invs.push({ id: inv.id, number: inv.invoice_number, type: 'inv' });
+          addedToSos.add(dc.sales_order_id);
+        }
+      });
+    }
   });
 
   const dcMap = new Map<string, LinkedDocsByDc>();
@@ -58,7 +73,22 @@ export async function fetchLinkedDocumentsBundle() {
 
   const invMap = new Map<string, LinkedDocsByInv>();
   (invRes.data || []).forEach((inv: any) => {
-    const sos = inv.sales_order_id && soById.get(inv.sales_order_id) ? [{ id: inv.sales_order_id, number: soById.get(inv.sales_order_id)!, type: 'so' as const }] : [];
+    let sos: LinkedDocRef[] = [];
+    if (inv.sales_order_id && soById.get(inv.sales_order_id)) {
+      sos = [{ id: inv.sales_order_id, number: soById.get(inv.sales_order_id)!, type: 'so' as const }];
+    } else {
+      // Trace SO through linked DCs
+      const linkedDcIds = invToDcIds.get(inv.id);
+      if (linkedDcIds) {
+        for (const dcId of linkedDcIds) {
+          const dc = dcById.get(dcId);
+          if (dc?.sales_order_id && soById.get(dc.sales_order_id)) {
+            sos = [{ id: dc.sales_order_id, number: soById.get(dc.sales_order_id)!, type: 'so' as const }];
+            break;
+          }
+        }
+      }
+    }
     const dcs = Array.from(invToDcIds.get(inv.id) || []).map((id) => ({ id, number: dcById.get(id)?.challan_number || id, type: 'dc' as const }));
     invMap.set(inv.id, { invId: inv.id, sos, dcs, invs: [] });
   });

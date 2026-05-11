@@ -1380,7 +1380,8 @@ export function Sales() {
         <LinkedDocsCell
           sos={inv.sales_order?.so_number ? [{ id: inv.sales_order_id || '', number: inv.sales_order.so_number, type: 'so' }] : []}
           dcs={(inv.linked_challans || []).map((dc) => ({ id: dc.id, number: dc.challan_number, type: 'dc' as const }))}
-          invs={[{ id: inv.id, number: inv.invoice_number, type: 'inv' as const }]}
+          invs={[]}
+          show={{ inv: false }}
           onClick={(doc: LinkedDocRef) => {
             if (doc.type === 'dc') handleFlyChallanClick(doc.id);
             if (doc.type === 'so') openLinkedSalesOrderView(doc.id);

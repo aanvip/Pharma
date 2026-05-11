@@ -231,7 +231,7 @@ export function DeliveryChallan() {
           ...challan,
           invoicing_status: invStatus?.status || 'not_invoiced',
           total_items: invStatus?.total_items || 0,
-          invoiced_items: invStatus?.fully_invoiced_items + invStatus?.partially_invoiced_items || 0,
+          invoiced_items: (invStatus?.fully_invoiced_items || 0) + (invStatus?.partially_invoiced_items || 0),
           linked_invoices: invStatus?.linked_invoices || []
         };
       });
@@ -1143,7 +1143,7 @@ export function DeliveryChallan() {
             <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>
               {statusLabels[status]}
             </span>
-            {challan.total_items > 0 && (
+            {challan.total_items > 0 && status !== 'fully_invoiced' && (
               <div className="text-xs text-gray-500">
                 {challan.invoiced_items || 0}/{challan.total_items} items invoiced
               </div>
