@@ -176,7 +176,7 @@ export function DeliveryChallan() {
           status,
           customers(company_name)
         `)
-        .in('status', ['approved', 'stock_reserved', 'shortage', 'pending_delivery'])
+        .in('status', ['approved', 'stock_reserved', 'shortage', 'pending_delivery', 'partially_delivered'])
         .eq('is_archived', false)
         .order('so_date', { ascending: false });
 

@@ -9,6 +9,9 @@ interface NotificationParams {
   referenceType?: string;
 }
 
+// Insert notification using ON CONFLICT DO NOTHING — the DB unique index on
+// (user_id, type, message) WHERE is_read=false prevents duplicates even from
+// parallel browser tabs hitting the same interval simultaneously.
 export async function createNotification(params: NotificationParams) {
   try {
     const { error } = await supabase
@@ -21,72 +24,80 @@ export async function createNotification(params: NotificationParams) {
         reference_id: params.referenceId || null,
         reference_type: params.referenceType || null,
         is_read: false,
-      }]);
+      }], { onConflict: 'user_id,type,message' } as any);
 
-    if (error) throw error;
+    // 23505 = unique_violation — expected when dedup index blocks a duplicate; not an error
+    if (error && (error as any).code !== '23505') throw error;
   } catch (error) {
     console.error('Error creating notification:', error);
   }
+}
+
+// Check if a daily notification has already been sent today (read or unread).
+// The daily dedup index covers this at DB level, but we skip the insert entirely
+// to avoid unnecessary round-trips.
+async function dailyNotifExistsToday(userId: string, type: string): Promise<boolean> {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const { data } = await supabase
+    .from('notifications')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('type', type)
+    .gte('created_at', todayStart.toISOString())
+    .limit(1);
+
+  return !!(data && data.length > 0);
 }
 
 export async function checkAndCreateLowStockNotifications() {
   try {
     const { data: products } = await supabase
       .from('products')
-      .select('id, product_name, min_stock_level')
+      .select('id, product_name, min_stock_level, current_stock')
       .gt('min_stock_level', 0);
 
     if (!products || products.length === 0) return;
 
-    const lowStockProducts = [];
+    const lowStockProducts: { product_name: string; current_stock: number; min_stock_level: number }[] = [];
+
     for (const product of products) {
-      const { data: batches } = await supabase
-        .from('batches')
-        .select('current_stock')
-        .eq('product_id', product.id)
-        .eq('is_active', true);
-
-      const totalStock = batches?.reduce((sum, batch) => sum + (batch.current_stock || 0), 0) || 0;
-
-      if (totalStock < product.min_stock_level) {
+      const stock = product.current_stock ?? 0;
+      if (stock < product.min_stock_level) {
         lowStockProducts.push({
           product_name: product.product_name,
-          current_stock: totalStock,
-          min_stock_level: product.min_stock_level
+          current_stock: stock,
+          min_stock_level: product.min_stock_level,
         });
       }
     }
 
-    if (lowStockProducts && lowStockProducts.length > 0) {
-      const { data: users } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('is_active', true)
-        .in('role', ['admin', 'warehouse']);
+    if (lowStockProducts.length === 0) return;
 
-      if (users) {
-        for (const user of users) {
-          const message = `${lowStockProducts.length} product(s) are running low on stock.`;
+    const { data: users } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('is_active', true)
+      .in('role', ['admin', 'warehouse']);
 
-          // Create only when content is new (gmail-like behavior after mark-as-read)
-          const { data: existingNotification } = await supabase
-            .from('notifications')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('type', 'low_stock')
-            .eq('message', message)
-            .limit(1);
+    if (!users) return;
 
-          if (!existingNotification?.length) {
-            await createNotification({
-              userId: user.id,
-              type: 'low_stock',
-              title: 'Low Stock Alert',
-              message,
-            });
-          }
-        }
-      }
+    // Build a descriptive message listing the product names
+    const productList = lowStockProducts.map(p => p.product_name).join(', ');
+    const message = lowStockProducts.length === 1
+      ? `${productList} is running low on stock.`
+      : `${lowStockProducts.length} products low on stock: ${productList}.`;
+
+    for (const user of users) {
+      if (await dailyNotifExistsToday(user.id, 'low_stock')) continue;
+
+      await createNotification({
+        userId: user.id,
+        type: 'low_stock',
+        title: 'Low Stock Alert',
+        message,
+      });
     }
   } catch (error) {
     console.error('Error checking low stock:', error);
@@ -113,35 +124,27 @@ export async function checkAndCreateExpiryNotifications() {
       .lte('expiry_date', alertDate.toISOString())
       .gte('expiry_date', new Date().toISOString());
 
-    if (nearExpiryBatches && nearExpiryBatches.length > 0) {
-      const { data: users } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('is_active', true)
-        .in('role', ['admin', 'warehouse', 'sales']);
+    if (!nearExpiryBatches || nearExpiryBatches.length === 0) return;
 
-      if (users) {
-        for (const user of users) {
-          const message = `${nearExpiryBatches.length} batch(es) will expire within ${alertDays} days.`;
+    const { data: users } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('is_active', true)
+      .in('role', ['admin', 'warehouse', 'sales']);
 
-          const { data: existingNotification } = await supabase
-            .from('notifications')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('type', 'near_expiry')
-            .eq('message', message)
-            .limit(1);
+    if (!users) return;
 
-          if (!existingNotification?.length) {
-            await createNotification({
-              userId: user.id,
-              type: 'near_expiry',
-              title: 'Products Near Expiry',
-              message,
-            });
-          }
-        }
-      }
+    const message = `${nearExpiryBatches.length} batch(es) will expire within ${alertDays} days.`;
+
+    for (const user of users) {
+      if (await dailyNotifExistsToday(user.id, 'near_expiry')) continue;
+
+      await createNotification({
+        userId: user.id,
+        type: 'near_expiry',
+        title: 'Products Near Expiry',
+        message,
+      });
     }
   } catch (error) {
     console.error('Error checking expiry dates:', error);
@@ -159,42 +162,35 @@ export async function checkAndCreateFollowUpNotifications() {
       .not('follow_up_date', 'is', null)
       .lte('follow_up_date', today);
 
-    if (dueActivities && dueActivities.length > 0) {
-      const { data: users } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('is_active', true)
-        .in('role', ['admin', 'sales']);
+    if (!dueActivities || dueActivities.length === 0) return;
 
-      if (users) {
-        for (const user of users) {
-          const message = `You have ${dueActivities.length} follow-up(s) due today.`;
+    const { data: users } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('is_active', true)
+      .in('role', ['admin', 'sales']);
 
-          const { data: existingNotification } = await supabase
-            .from('notifications')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('type', 'follow_up')
-            .eq('message', message)
-            .limit(1);
+    if (!users) return;
 
-          if (!existingNotification?.length) {
-            await createNotification({
-              userId: user.id,
-              type: 'follow_up',
-              title: 'Follow-ups Due',
-              message,
-            });
-          }
-        }
-      }
+    const message = `You have ${dueActivities.length} follow-up(s) due today.`;
+
+    for (const user of users) {
+      // Skip if already sent any follow_up notification today (read or unread)
+      if (await dailyNotifExistsToday(user.id, 'follow_up')) continue;
+
+      await createNotification({
+        userId: user.id,
+        type: 'follow_up',
+        title: 'Follow-ups Due',
+        message,
+      });
     }
   } catch (error) {
     console.error('Error checking follow-ups:', error);
   }
 }
 
-let notificationInterval: NodeJS.Timeout | null = null;
+let notificationInterval: ReturnType<typeof setInterval> | null = null;
 
 export async function initializeNotificationChecks() {
   if (notificationInterval) {
