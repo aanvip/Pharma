@@ -174,7 +174,8 @@ export function DeliveryChallan() {
           so_number,
           customer_id,
           status,
-          customers(company_name)
+          customers(company_name),
+          sales_order_items(products(product_name))
         `)
         .in('status', ['approved', 'stock_reserved', 'shortage', 'pending_delivery', 'partially_delivered'])
         .eq('is_archived', false)
@@ -1330,10 +1331,20 @@ export function DeliveryChallan() {
                 <SearchableSelect
                   value={formData.sales_order_id}
                   onChange={handleSalesOrderChange}
-                  options={salesOrders.map((so: any) => ({
-                    value: so.id,
-                    label: `${so.so_number} (${so.status})`
-                  }))}
+                  options={salesOrders.map((so: any) => {
+                    const productNames = [...new Set(
+                      (so.sales_order_items || [])
+                        .map((i: any) => i.products?.product_name)
+                        .filter(Boolean)
+                    )].join(', ');
+                    const statusLabel = so.status === 'partially_delivered' ? 'partial' : so.status.replace('_', ' ');
+                    return {
+                      value: so.id,
+                      label: productNames
+                        ? `${so.so_number} — ${productNames} (${statusLabel})`
+                        : `${so.so_number} (${statusLabel})`
+                    };
+                  })}
                   placeholder={formData.customer_id ? 'Select Sales Order' : 'Select a customer first'}
                   disabled={!formData.customer_id}
                 />

@@ -178,7 +178,7 @@ export function Sales() {
   const [products, setProducts] = useState<Product[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [pendingChallans, setPendingChallans] = useState<DeliveryChallan[]>([]);
-  const [pendingDCOptions, setPendingDCOptions] = useState<Array<{ challan_id: string; challan_number: string; challan_date: string; item_count: number }>>([]);
+  const [pendingDCOptions, setPendingDCOptions] = useState<Array<{ challan_id: string; challan_number: string; challan_date: string; item_count: number; product_names?: string }>>([]);
   const [customerSalesOrders, setCustomerSalesOrders] = useState<SalesOrderOption[]>([]);
   const [selectedSOId, setSelectedSOId] = useState<string>('');
   const [soAutoLinked, setSoAutoLinked] = useState(false);
@@ -590,11 +590,32 @@ export function Sales() {
 
       if (error) throw error;
 
+      // Fetch product names for each DC
+      const challanIds = (data || []).map(dc => dc.challan_id);
+      let productNameMap: Record<string, string> = {};
+      if (challanIds.length > 0) {
+        const { data: items } = await supabase
+          .from('delivery_challan_items')
+          .select('challan_id, products(product_name)')
+          .in('challan_id', challanIds);
+        if (items) {
+          const grouped: Record<string, Set<string>> = {};
+          items.forEach((item: any) => {
+            if (!grouped[item.challan_id]) grouped[item.challan_id] = new Set();
+            if (item.products?.product_name) grouped[item.challan_id].add(item.products.product_name);
+          });
+          Object.entries(grouped).forEach(([id, names]) => {
+            productNameMap[id] = [...names].join(', ');
+          });
+        }
+      }
+
       const options = (data || []).map(dc => ({
         challan_id: dc.challan_id,
         challan_number: dc.challan_number,
         challan_date: dc.challan_date,
-        item_count: dc.total_remaining_quantity
+        item_count: dc.total_remaining_quantity,
+        product_names: productNameMap[dc.challan_id] || '',
       }));
 
       setPendingDCOptions(options);

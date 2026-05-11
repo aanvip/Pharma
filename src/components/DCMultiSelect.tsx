@@ -7,6 +7,7 @@ interface DCOption {
   challan_number: string;
   challan_date: string;
   item_count: number;
+  product_names?: string;
 }
 
 interface DCMultiSelectProps {
@@ -37,9 +38,11 @@ export function DCMultiSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredOptions = options.filter(option =>
-    option.challan_number.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOptions = options.filter(option => {
+    const term = searchTerm.toLowerCase();
+    return option.challan_number.toLowerCase().includes(term) ||
+      (option.product_names || '').toLowerCase().includes(term);
+  });
 
   const toggleDC = (dcId: string) => {
     if (selectedDCIds.includes(dcId)) {
@@ -137,6 +140,9 @@ export function DCMultiSelect({
                       </div>
                       <div className="flex-1">
                         <div className="font-medium text-gray-900">{option.challan_number}</div>
+                        {option.product_names && (
+                          <div className="text-xs text-gray-700 font-medium truncate">{option.product_names}</div>
+                        )}
                         <div className="text-xs text-gray-500">
                           {formatDate(option.challan_date)} • {option.item_count} items pending
                         </div>
