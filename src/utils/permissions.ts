@@ -25,6 +25,9 @@ export const ALL_MODULES = [
   { id: 'tasks', label: 'Tasks' },
   { id: 'inventory', label: 'Inventory Adjustments' },
   { id: 'reports', label: 'Reports' },
+  { id: 'price-requests', label: 'Price Requests' },
+  { id: 'pricing-desk', label: 'Pricing Desk' },
+  { id: 'pricing-ledger', label: 'Pricing Ledger' },
   { id: 'settings', label: 'Settings' },
 ] as const;
 
@@ -32,9 +35,9 @@ export type ModuleId = typeof ALL_MODULES[number]['id'];
 
 const ROLE_DEFAULT_MODULES: Record<UserRole, ModuleId[]> = {
   admin: ALL_MODULES.map(m => m.id) as ModuleId[], // all modules including 'reports'
-  manager: ['dashboard', 'products', 'batches', 'stock', 'customers', 'sales-orders', 'delivery-challan', 'sales', 'purchase-orders', 'import-requirements', 'import-containers', 'finance', 'price-calculator', 'crm', 'command-center', 'tasks', 'inventory', 'reports'],
+  manager: ['dashboard', 'products', 'batches', 'stock', 'customers', 'sales-orders', 'delivery-challan', 'sales', 'purchase-orders', 'import-requirements', 'import-containers', 'finance', 'price-calculator', 'crm', 'command-center', 'tasks', 'inventory', 'reports', 'price-requests', 'pricing-desk', 'pricing-ledger'],
   accounts: ['dashboard', 'batches', 'stock', 'customers', 'sales-orders', 'delivery-challan', 'sales', 'purchase-orders', 'import-containers', 'finance', 'tasks', 'settings'],
-  sales: ['dashboard', 'products', 'stock', 'customers', 'sales-orders', 'delivery-challan', 'sales', 'purchase-orders', 'import-requirements', 'price-calculator', 'crm', 'command-center', 'tasks', 'settings'],
+  sales: ['dashboard', 'products', 'stock', 'customers', 'sales-orders', 'delivery-challan', 'sales', 'purchase-orders', 'import-requirements', 'price-calculator', 'crm', 'command-center', 'tasks', 'settings', 'price-requests', 'pricing-ledger'],
   warehouse: ['dashboard', 'products', 'batches', 'stock', 'customers', 'sales-orders', 'delivery-challan', 'sales', 'purchase-orders', 'tasks', 'inventory', 'settings'],
   auditor_ca: ['dashboard', 'sales', 'purchase-orders', 'finance'],
 };

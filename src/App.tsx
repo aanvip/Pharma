@@ -35,6 +35,9 @@ const SalesTeam = lazy(() => import('./pages/SalesTeam').then(m => ({ default: m
 const PriceCalculator = lazy(() => import('./pages/PriceCalculator').then(m => ({ default: m.PriceCalculator })));
 const PublicCalculator = lazy(() => import('./pages/PublicCalculator').then(m => ({ default: m.PublicCalculator })));
 const Reports = lazy(() => import('./pages/reports/Reports').then(m => ({ default: m.Reports })));
+const PriceRequests = lazy(() => import('./pages/PriceRequests').then(m => ({ default: m.PriceRequests })));
+const PricingDesk = lazy(() => import('./pages/PricingDesk').then(m => ({ default: m.PricingDesk })));
+const PricingLedger = lazy(() => import('./pages/PricingLedger').then(m => ({ default: m.PricingLedger })));
 
 function LoadingFallback() {
   return (
@@ -146,6 +149,12 @@ function AppContent() {
         return <PriceCalculator />;
       case 'reports':
         return <Reports />;
+      case 'price-requests':
+        return <PriceRequests />;
+      case 'pricing-desk':
+        return <PricingDesk />;
+      case 'pricing-ledger':
+        return <PricingLedger />;
       case 'settings':
         return <Settings />;
       default:

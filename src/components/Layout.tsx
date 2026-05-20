@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Package, Boxes, Warehouse, Users, CircleUser as UserCircle,
   ShoppingCart, DollarSign, Settings, LogOut, Menu, X, Globe, Truck, Zap,
   CheckSquare, FileText, TrendingUp, ClipboardList, Calendar, Calculator,
-  BarChart2,
+  BarChart2, Tags,
 } from 'lucide-react';
 import logo from '../assets/Untitled-1.svg';
 
@@ -143,6 +143,9 @@ export function Layout({ children }: LayoutProps) {
     { id: 'import-containers',   label: t('nav.importContainers'),     icon: Package },
     { id: 'finance',             label: t('nav.finance'),              icon: DollarSign },
     { id: 'price-calculator',    label: 'Price Calculator',            icon: Calculator },
+    { id: 'price-requests',      label: 'Price Requests',              icon: Tags },
+    { id: 'pricing-desk',        label: 'Pricing Desk',                icon: Tags },
+    { id: 'pricing-ledger',      label: 'Pricing Ledger',              icon: Tags },
     { id: 'reports',             label: 'Reports',                    icon: BarChart2 },
     { id: 'tasks',               label: t('nav.tasks'),                icon: CheckSquare },
     { id: 'command-center',      label: t('nav.commandCenter'),        icon: Zap },
@@ -155,6 +158,7 @@ export function Layout({ children }: LayoutProps) {
     { label: 'Operations',items: allItems.filter(i => ['products', 'batches', 'stock', 'inventory'].includes(i.id)) },
     { label: 'Purchases', items: allItems.filter(i => ['purchase-orders', 'import-requirements', 'import-containers'].includes(i.id)) },
     { label: 'Finance',   items: allItems.filter(i => ['finance', 'price-calculator'].includes(i.id)) },
+    { label: 'Pricing',   items: allItems.filter(i => ['price-requests', 'pricing-desk', 'pricing-ledger'].includes(i.id)) },
     { label: 'Reports',   items: allItems.filter(i => ['reports'].includes(i.id)) },
     { label: 'System',    items: allItems.filter(i => ['tasks', 'command-center', 'settings'].includes(i.id)) },
   ];
