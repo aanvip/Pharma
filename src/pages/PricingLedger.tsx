@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '../components/Layout';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { Search } from 'lucide-react';
 import { formatDate } from '../utils/dateFormat';
 
@@ -30,6 +31,7 @@ const WON_LOST_META: Record<string, { label: string; color: string }> = {
 };
 
 export function PricingLedger() {
+  const { profile } = useAuth();
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -45,9 +47,12 @@ export function PricingLedger() {
   useEffect(() => { load(); }, [load]);
 
   const updateWonLost = async (id: string, val: string) => {
+    if (profile?.role !== 'admin' && profile?.role !== 'manager') return;
     await supabase.from('pricing_ledger').update({ won_lost: val }).eq('id', id);
     setEntries(e => e.map(x => x.id === id ? { ...x, won_lost: val } : x));
   };
+
+  const canEditLedgerOutcome = profile?.role === 'admin' || profile?.role === 'manager';
 
   const filtered = entries.filter(e => {
     const q = search.toLowerCase();
@@ -136,7 +141,8 @@ export function PricingLedger() {
                         <td className="px-3 py-2 text-gray-500">{e.competitor_price ? `$${e.competitor_price}` : '-'}</td>
                         <td className="px-3 py-2">
                           <select value={e.won_lost || 'pending'} onChange={ev => updateWonLost(e.id, ev.target.value)}
-                            className={`border-0 rounded px-1.5 py-0.5 text-[10px] font-medium focus:outline-none cursor-pointer ${wlm.color}`}>
+                            disabled={!canEditLedgerOutcome}
+                            className={`border-0 rounded px-1.5 py-0.5 text-[10px] font-medium focus:outline-none ${canEditLedgerOutcome ? 'cursor-pointer' : 'cursor-default'} ${wlm.color}`}>
                             <option value="pending">Pending</option>
                             <option value="won">Won</option>
                             <option value="lost">Lost</option>

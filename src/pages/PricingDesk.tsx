@@ -29,6 +29,25 @@ const SOURCE_COLORS: Record<string, string> = {
   unknown: 'bg-gray-100 text-gray-500',
 };
 
+async function recalcPriceRequestCounters(priceRequestId: string) {
+  const { data: prItems } = await supabase
+    .from('price_request_items')
+    .select('price_status, final_quote_price')
+    .eq('price_request_id', priceRequestId);
+
+  if (!prItems) return;
+
+  await supabase.from('price_requests').update({
+    total_products: prItems.length,
+    source_pending: prItems.filter(i => i.price_status === 'pending').length,
+    source_received: prItems.filter(i => i.price_status === 'received').length,
+    final_ready: prItems.filter(i => !!i.final_quote_price).length,
+    final_pending: prItems.filter(i => !i.final_quote_price).length,
+    last_activity_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq('id', priceRequestId);
+}
+
 export function PricingDesk() {
   const { profile } = useAuth();
   const [items, setItems] = useState<DeskItem[]>([]);
@@ -70,7 +89,7 @@ export function PricingDesk() {
       updated_at: new Date().toISOString(),
     }).eq('id', item.id);
 
-    await supabase.from('pricing_ledger').insert({
+    await supabase.from('pricing_ledger').upsert({
       price_request_id: item.price_request_id,
       price_request_item_id: item.id,
       customer_name: item.pr?.customer_name || null,
@@ -83,7 +102,9 @@ export function PricingDesk() {
       competitor_price: item.competitor_price,
       remarks: e.remarks || null,
       created_by: profile?.id || null,
-    });
+      quote_date: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'price_request_item_id' });
 
     await supabase.from('communication_timeline').insert({
       price_request_id: item.price_request_id,
@@ -94,14 +115,7 @@ export function PricingDesk() {
       description: `Final quote entered for ${item.product_name}: ${e.currency} ${price.toLocaleString()}`,
     });
 
-    const { data: prItems } = await supabase.from('price_request_items').select('final_quote_price').eq('price_request_id', item.price_request_id);
-    if (prItems) {
-      await supabase.from('price_requests').update({
-        final_ready: prItems.filter(i => !!i.final_quote_price).length,
-        final_pending: prItems.filter(i => !i.final_quote_price).length,
-        last_activity_at: new Date().toISOString(),
-      }).eq('id', item.price_request_id);
-    }
+    await recalcPriceRequestCounters(item.price_request_id);
 
     setDone(d => new Set([...d, item.id]));
     setEditing(e => { const n = { ...e }; delete n[item.id]; return n; });
