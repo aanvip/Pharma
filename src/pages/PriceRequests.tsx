@@ -52,6 +52,20 @@ function NewPRModal({ onClose, onCreated }: { onClose: () => void; onCreated: (i
 
   const save = async () => {
     setSaving(true);
+    if (form.inquiry_id) {
+      const { data: existing } = await supabase
+        .from('price_requests')
+        .select('id')
+        .eq('inquiry_id', form.inquiry_id)
+        .maybeSingle();
+
+      if (existing?.id) {
+        setSaving(false);
+        onCreated(existing.id);
+        return;
+      }
+    }
+
     const { data, error } = await supabase.from('price_requests').insert({
       inquiry_id: form.inquiry_id || null,
       customer_name: form.customer_name || null,
@@ -60,7 +74,19 @@ function NewPRModal({ onClose, onCreated }: { onClose: () => void; onCreated: (i
       created_by: profile?.id || null,
     }).select('id').single();
     setSaving(false);
-    if (!error && data) onCreated(data.id);
+    if (!error && data) {
+      onCreated(data.id);
+      return;
+    }
+
+    if (form.inquiry_id) {
+      const { data: existing } = await supabase
+        .from('price_requests')
+        .select('id')
+        .eq('inquiry_id', form.inquiry_id)
+        .maybeSingle();
+      if (existing?.id) onCreated(existing.id);
+    }
   };
 
   return (

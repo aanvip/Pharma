@@ -51,7 +51,7 @@ function LoadingFallback() {
 }
 
 function AppContent() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, accessibleModules } = useAuth();
   const { currentPage } = useNavigation();
   const location = useLocation();
 
@@ -103,6 +103,15 @@ function AppContent() {
 
   if (location.pathname === '/') {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  const pricingPages = new Set(['price-requests', 'pricing-desk', 'pricing-ledger']);
+  if (pricingPages.has(currentPage)) {
+    const hasModuleAccess = accessibleModules.has(currentPage);
+    const hasDeskRole = currentPage !== 'pricing-desk' || profile.role === 'admin' || profile.role === 'manager';
+    if (!hasModuleAccess || !hasDeskRole) {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   const renderPage = () => {
