@@ -3,6 +3,7 @@ import { Layout } from '../components/Layout';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useNavigation } from '../contexts/NavigationContext';
 import { supabase } from '../lib/supabase';
 import { Plus, Mail, Calendar as CalendarIcon, LayoutGrid, Users, Table, Inbox, Activity, Clock, Archive, BarChart3, Send, FolderOpen, Orbit } from 'lucide-react';
 import { SalesTeam } from './SalesTeam';
@@ -73,6 +74,19 @@ interface Inquiry {
   remarks: string | null;
   internal_notes: string | null;
   created_at: string;
+  price_ready?: boolean;
+  source_type?: string | null;
+  source_status?: string | null;
+  document_status?: string | null;
+  kunal_price_status?: string | null;
+  quote_status?: string | null;
+  quote_sent_at?: string | null;
+  last_sourcing_sent_at?: string | null;
+  last_reminder_sent_at?: string | null;
+  reminder_count?: number | null;
+  kunal_pricing_requested_at?: string | null;
+  kunal_pricing_requested_by?: string | null;
+  kunal_pricing_note?: string | null;
   user_profiles?: {
     full_name: string;
   };
@@ -81,6 +95,7 @@ interface Inquiry {
 export function CRM() {
   const { profile } = useAuth();
   const { t } = useLanguage();
+  const { navigationData, clearNavigationData } = useNavigation();
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,6 +116,17 @@ export function CRM() {
   useEffect(() => {
     loadInquiries();
   }, []);
+
+  useEffect(() => {
+    const targetId = navigationData?.crmInquiryId;
+    if (!targetId || typeof targetId !== 'string' || inquiries.length === 0) return;
+    const target = inquiries.find(inquiry => inquiry.id === targetId);
+    if (!target) return;
+    setActiveTab('table');
+    setEditingInquiry(target);
+    setModalOpen(true);
+    clearNavigationData();
+  }, [clearNavigationData, inquiries, navigationData]);
 
   const loadInquiries = async () => {
     try {

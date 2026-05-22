@@ -6,6 +6,14 @@ export interface ModulePermission {
   can_access: boolean;
 }
 
+/**
+ * Module catalogue with the clean Pricing labels matching the sidebar:
+ *   Pricing Overview · Anvi Sourcing · Kunal Pricing · Price History
+ *
+ * The older internal IDs (price-requests, pricing-desk, pricing-parser-review)
+ * are kept as routes for admin/debug but marked `advanced: true` so the
+ * permission UI can hide them from normal day-to-day permission editing.
+ */
 export const ALL_MODULES = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'products', label: 'Products' },
@@ -25,20 +33,64 @@ export const ALL_MODULES = [
   { id: 'tasks', label: 'Tasks' },
   { id: 'inventory', label: 'Inventory Adjustments' },
   { id: 'reports', label: 'Reports' },
-  { id: 'price-requests', label: 'Price Requests' },
-  { id: 'pricing-desk', label: 'Pricing Desk' },
-  { id: 'pricing-ledger', label: 'Pricing Ledger' },
+
+  // Pricing — clean labels surfaced in sidebar + permission UI
+  { id: 'pricing-dashboard',     label: 'Pricing Overview' },
+  { id: 'sourcing-outbox',       label: 'Anvi Sourcing' },
+  { id: 'pricing-worksheet',     label: 'Kunal Pricing' },
+  { id: 'pricing-ledger',        label: 'Price History' },
+
+  // Pricing — advanced / debug (hidden from normal permission grid)
+  { id: 'price-requests',        label: 'Advanced: Price Requests',  advanced: true },
+  { id: 'pricing-desk',          label: 'Advanced: Pricing Desk',    advanced: true },
+  { id: 'pricing-parser-review', label: 'Advanced: Parser Review',   advanced: true },
+
   { id: 'settings', label: 'Settings' },
 ] as const;
 
 export type ModuleId = typeof ALL_MODULES[number]['id'];
 
+/**
+ * Default per-role module access. These should match the live business rules:
+ *   admin   — everything
+ *   manager — full Pricing group (incl. advanced) for oversight
+ *   sales   — CRM + Pricing Overview only (no Anvi Sourcing, no Kunal Pricing,
+ *             no Price History, no advanced pricing)
+ *   warehouse / accounts / auditor_ca — no pricing modules at all
+ */
 const ROLE_DEFAULT_MODULES: Record<UserRole, ModuleId[]> = {
-  admin: ALL_MODULES.map(m => m.id) as ModuleId[], // all modules including 'reports'
-  manager: ['dashboard', 'products', 'batches', 'stock', 'customers', 'sales-orders', 'delivery-challan', 'sales', 'purchase-orders', 'import-requirements', 'import-containers', 'finance', 'price-calculator', 'crm', 'command-center', 'tasks', 'inventory', 'reports', 'price-requests', 'pricing-desk', 'pricing-ledger'],
-  accounts: ['dashboard', 'batches', 'stock', 'customers', 'sales-orders', 'delivery-challan', 'sales', 'purchase-orders', 'import-containers', 'finance', 'tasks', 'settings'],
-  sales: ['dashboard', 'products', 'stock', 'customers', 'sales-orders', 'delivery-challan', 'sales', 'purchase-orders', 'import-requirements', 'price-calculator', 'crm', 'command-center', 'tasks', 'settings', 'price-requests', 'pricing-ledger'],
-  warehouse: ['dashboard', 'products', 'batches', 'stock', 'customers', 'sales-orders', 'delivery-challan', 'sales', 'purchase-orders', 'tasks', 'inventory', 'settings'],
+  admin: ALL_MODULES.map(m => m.id) as ModuleId[],
+
+  manager: [
+    'dashboard', 'products', 'batches', 'stock', 'customers',
+    'sales-orders', 'delivery-challan', 'sales', 'purchase-orders',
+    'import-requirements', 'import-containers', 'finance', 'price-calculator',
+    'crm', 'command-center', 'tasks', 'inventory', 'reports',
+    'pricing-dashboard', 'sourcing-outbox', 'pricing-worksheet', 'pricing-ledger',
+    // Advanced pricing intentionally NOT given by default to manager either —
+    // can be enabled per-user from the permission grid if needed.
+  ],
+
+  accounts: [
+    'dashboard', 'batches', 'stock', 'customers', 'sales-orders',
+    'delivery-challan', 'sales', 'purchase-orders', 'import-containers',
+    'finance', 'tasks', 'settings',
+  ],
+
+  sales: [
+    'dashboard', 'products', 'stock', 'customers', 'sales-orders',
+    'delivery-challan', 'sales', 'purchase-orders', 'import-requirements',
+    'price-calculator', 'crm', 'command-center', 'tasks', 'settings',
+    // Pricing for sales = Pricing Overview only.
+    // No Anvi Sourcing. No Kunal Pricing. No Price History.
+    'pricing-dashboard',
+  ],
+
+  warehouse: [
+    'dashboard', 'products', 'batches', 'stock', 'customers', 'sales-orders',
+    'delivery-challan', 'sales', 'purchase-orders', 'tasks', 'inventory', 'settings',
+  ],
+
   auditor_ca: ['dashboard', 'sales', 'purchase-orders', 'finance'],
 };
 
@@ -74,4 +126,18 @@ export function resolveAccessibleModules(
     }
   }
   return accessible;
+}
+
+/**
+ * Pricing role helpers — used by the UI to decide what sensitive pricing
+ * fields (P.Price, source price, USD landed cost) to render.
+ */
+export function canSeeInternalPricing(role: UserRole | string | null | undefined): boolean {
+  return role === 'admin' || role === 'manager';
+}
+
+export function canSeeFinalQuote(role: UserRole | string | null | undefined, priceReady: boolean | null | undefined): boolean {
+  if (role === 'admin' || role === 'manager') return true;
+  if (role === 'sales') return !!priceReady;
+  return false;
 }

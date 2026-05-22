@@ -228,14 +228,14 @@ export function BulkEmailComposer({ selectedCustomers, onClose, onComplete }: Bu
         }))
       );
 
-      // Create campaign record immediately so it's persisted even if the browser closes
+      // Create campaign record using only columns that exist on bulk_email_campaigns
+      // (subject, total_recipients, sent_count, failed_count, status,
+      //  has_attachments, template_id, created_by). If the insert fails, surface
+      // a warning but do NOT block the send — emails still go out.
       const { data: campaign, error: campaignErr } = await supabase
         .from('bulk_email_campaigns')
         .insert({
           subject,
-          email_body: currentHtml,
-          sender_name: senderName,
-          attachments_context: encodedAttachments,
           total_recipients: selectedCustomers.length,
           sent_count: 0,
           failed_count: 0,
@@ -247,18 +247,31 @@ export function BulkEmailComposer({ selectedCustomers, onClose, onComplete }: Bu
         .select('id')
         .single();
 
-      if (campaignErr || !campaign) throw new Error('Failed to create campaign log');
+      if (campaignErr || !campaign) {
+        console.warn('[BulkEmailComposer] Campaign log insert failed:', campaignErr?.message);
+        showToast({
+          type: 'warning',
+          title: 'Campaign log unavailable',
+          message: 'Email may send, but campaign log failed.',
+        });
+      }
+      const campaignId: string | null = campaign?.id || null;
 
-      // Insert all recipients as 'pending' up-front
-      await supabase.from('bulk_email_recipients').insert(
-        selectedCustomers.map(c => ({
-          campaign_id: campaign.id,
-          contact_id: c.id,
-          company_name: c.company_name,
-          email: c.email,
-          status: 'pending',
-        }))
-      );
+      // Insert all recipients as 'pending' up-front — only if the campaign
+      // log row exists; otherwise skip the recipients log table too.
+      if (campaignId) {
+        await supabase.from('bulk_email_recipients').insert(
+          selectedCustomers.map(c => ({
+            campaign_id: campaignId,
+            contact_id: c.id,
+            company_name: c.company_name,
+            email: c.email,
+            status: 'pending',
+          }))
+        ).then(({ error }) => {
+          if (error) console.warn('[BulkEmailComposer] recipients insert failed:', error.message);
+        });
+      }
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       let successCount = 0;
@@ -266,10 +279,12 @@ export function BulkEmailComposer({ selectedCustomers, onClose, onComplete }: Bu
       let stoppedForReauth = false;
 
       // Load the inserted recipient rows to get their IDs for updates
-      const { data: recipientRows } = await supabase
-        .from('bulk_email_recipients')
-        .select('id, email')
-        .eq('campaign_id', campaign.id);
+      const { data: recipientRows } = campaignId
+        ? await supabase
+            .from('bulk_email_recipients')
+            .select('id, email')
+            .eq('campaign_id', campaignId)
+        : { data: [] as Array<{ id: string; email: string }> };
 
       const recipientIdMap = new Map<string, string>(
         (recipientRows || []).map(r => [r.email, r.id])
@@ -309,8 +324,7 @@ export function BulkEmailComposer({ selectedCustomers, onClose, onComplete }: Bu
               senderName,
               isHtml: true,
               attachments: encodedAttachments,
-              googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-              googleClientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET,
+              workflowType: 'crm_bulk_email',
             }),
           });
 
@@ -376,9 +390,11 @@ export function BulkEmailComposer({ selectedCustomers, onClose, onComplete }: Bu
         }
 
         // Update campaign counts incrementally after each send
-        await supabase.from('bulk_email_campaigns')
-          .update({ sent_count: successCount, failed_count: failCount })
-          .eq('id', campaign.id);
+        if (campaignId) {
+          await supabase.from('bulk_email_campaigns')
+            .update({ sent_count: successCount, failed_count: failCount })
+            .eq('id', campaignId);
+        }
 
         if (stoppedForReauth) {
           break;
@@ -387,14 +403,16 @@ export function BulkEmailComposer({ selectedCustomers, onClose, onComplete }: Bu
 
       // Finalize campaign status
       const finalStatus = failCount === 0 ? 'completed' : successCount === 0 ? 'failed' : 'partial';
-      await supabase.from('bulk_email_campaigns')
-        .update({
-          status: finalStatus,
-          sent_count: successCount,
-          failed_count: failCount,
-          completed_at: new Date().toISOString(),
-        })
-        .eq('id', campaign.id);
+      if (campaignId) {
+        await supabase.from('bulk_email_campaigns')
+          .update({
+            status: finalStatus,
+            sent_count: successCount,
+            failed_count: failCount,
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', campaignId);
+      }
 
       if (selectedTemplate) {
         await supabase

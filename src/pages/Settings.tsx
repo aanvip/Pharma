@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Save, Building2, Mail, DollarSign, Package, Users, Calendar, FileText, Download, Upload, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { GmailSettings } from '../components/crm/GmailSettings';
+import { GmailVisibilityPanel } from '../components/crm/GmailVisibilityPanel';
 import { UserManagement } from '../components/settings/UserManagement';
 import { EmailTemplates } from '../components/settings/EmailTemplates';
 import { ExtractData } from '../components/settings/ExtractData';
@@ -446,7 +447,10 @@ export function Settings() {
 
           <div className="p-6">
             {activeTab === 'gmail' && (
-              <GmailSettings />
+              <div className="space-y-6">
+                <GmailSettings />
+                <GmailVisibilityPanel />
+              </div>
             )}
 
             {activeTab === 'templates' && (

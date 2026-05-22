@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Mail, RefreshCw, Sparkles, DollarSign, FileText, TestTube, Package, Calendar, AlertCircle } from 'lucide-react';
 import type { Email, ParsedEmailData } from '../../types/commandCenter';
+import { SourceReplyReviewModal } from './SourceReplyReviewModal';
 
 interface EmailListPanelProps {
   onEmailSelect: (email: Email, parsedData: ParsedEmailData | null) => void;
@@ -13,6 +14,7 @@ export function EmailListPanel({ onEmailSelect, selectedEmailId }: EmailListPane
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [parsingEmailId, setParsingEmailId] = useState<string | null>(null);
+  const [sourceReplyEmail, setSourceReplyEmail] = useState<Email | null>(null);
 
   const loadEmails = useCallback(async () => {
     try {
@@ -436,12 +438,22 @@ export function EmailListPanel({ onEmailSelect, selectedEmailId }: EmailListPane
                         minute: '2-digit',
                       })}
                     </span>
-                    {!isParsing && (
-                      <span className="text-xs text-blue-600 font-medium flex items-center gap-1">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setSourceReplyEmail(email); }}
+                        className="text-xs text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
+                        title="Parse this email as a supplier source reply"
+                      >
                         <Sparkles className="w-3 h-3" />
-                        AI Parse
-                      </span>
-                    )}
+                        Parse Source Reply
+                      </button>
+                      {!isParsing && (
+                        <span className="text-xs text-blue-600 font-medium flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" />
+                          AI Parse
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -449,6 +461,22 @@ export function EmailListPanel({ onEmailSelect, selectedEmailId }: EmailListPane
           </div>
         )}
       </div>
+      {sourceReplyEmail && (
+        <SourceReplyReviewModal
+          open={!!sourceReplyEmail}
+          onClose={() => setSourceReplyEmail(null)}
+          onSaved={() => { setSourceReplyEmail(null); loadEmails(); }}
+          email={{
+            subject: sourceReplyEmail.subject || '',
+            body: sourceReplyEmail.body || '',
+            fromEmail: sourceReplyEmail.from_email,
+            fromName: sourceReplyEmail.from_name || undefined,
+            receivedAt: sourceReplyEmail.received_date,
+            gmailMessageId: (sourceReplyEmail as Email & { message_id?: string | null }).message_id ?? null,
+            gmailThreadId:  (sourceReplyEmail as Email & { thread_id?: string | null }).thread_id  ?? null,
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -11,9 +11,6 @@ interface Campaign {
   id: string;
   subject: string;
   template_id: string | null;
-  email_body: string | null;
-  sender_name: string | null;
-  attachments_context: Array<{ filename: string; mimeType: string; data: string }> | null;
   total_recipients: number;
   sent_count: number;
   failed_count: number;
@@ -162,16 +159,18 @@ export function DeliveryLog() {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) throw new Error('Not authenticated');
 
-      const { data: campaign } = await supabase
+      // Read only columns that exist on bulk_email_campaigns. The email body
+      // is reconstructed from the linked template.
+      const { data: campaign, error: campaignErr } = await supabase
         .from('bulk_email_campaigns')
-        .select('id, subject, template_id, email_body, sender_name, attachments_context')
+        .select('id, subject, template_id, has_attachments')
         .eq('id', campaignId)
         .single();
 
-      if (!campaign) throw new Error('Campaign metadata not found');
+      if (campaignErr || !campaign) throw new Error('Campaign metadata not found');
 
-      let campaignBody = campaign.email_body || '';
-      if (!campaignBody && campaign.template_id) {
+      let campaignBody = '';
+      if (campaign.template_id) {
         const { data: template } = await supabase
           .from('crm_email_templates')
           .select('body')
@@ -227,11 +226,11 @@ export function DeliveryLog() {
               subject: personalizedSubject,
               body: personalizedBody,
               contactId: row.contact_id,
-              senderName: campaign.sender_name || '',
+              senderName: '',
               isHtml: true,
-              attachments: campaign.attachments_context || [],
-              googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-              googleClientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET,
+              attachments: [],
+              workflowType: 'delivery_log',
+              // Token refresh credentials are server-side only (Edge Function env).
             }),
           });
 

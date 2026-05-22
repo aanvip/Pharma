@@ -242,9 +242,12 @@ export function GmailSettings() {
             </div>
             <div className="flex-1">
               <h4 className="font-semibold text-gray-900 mb-2">Connect Your Gmail Account</h4>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-gray-600 mb-2">
                 Securely connect your Gmail account to automatically fetch pharmaceutical inquiry emails.
                 Your password is never stored - we use Google's OAuth2 for maximum security.
+              </p>
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2.5 py-1.5 mb-4">
+                Until you connect your own Gmail, pricing workflow emails (sourcing, reminders, customer quotes) will be sent from the company default sender.
               </p>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">

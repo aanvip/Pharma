@@ -38,6 +38,10 @@ const Reports = lazy(() => import('./pages/reports/Reports').then(m => ({ defaul
 const PriceRequests = lazy(() => import('./pages/PriceRequests').then(m => ({ default: m.PriceRequests })));
 const PricingDesk = lazy(() => import('./pages/PricingDesk').then(m => ({ default: m.PricingDesk })));
 const PricingLedger = lazy(() => import('./pages/PricingLedger').then(m => ({ default: m.PricingLedger })));
+const PricingParserReview = lazy(() => import('./pages/PricingParserReview').then(m => ({ default: m.PricingParserReview })));
+const PricingDashboard = lazy(() => import('./pages/PricingDashboard').then(m => ({ default: m.PricingDashboard })));
+const PricingWorksheet = lazy(() => import('./pages/PricingWorksheet').then(m => ({ default: m.PricingWorksheet })));
+const SourcingOutbox = lazy(() => import('./pages/SourcingOutbox').then(m => ({ default: m.SourcingOutbox })));
 
 function LoadingFallback() {
   return (
@@ -105,11 +109,13 @@ function AppContent() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const pricingPages = new Set(['price-requests', 'pricing-desk', 'pricing-ledger']);
+  const pricingPages = new Set(['price-requests', 'pricing-desk', 'pricing-ledger', 'pricing-parser-review', 'pricing-dashboard', 'pricing-worksheet', 'sourcing-outbox']);
   if (pricingPages.has(currentPage)) {
     const hasModuleAccess = accessibleModules.has(currentPage);
-    const hasDeskRole = currentPage !== 'pricing-desk' || profile.role === 'admin' || profile.role === 'manager';
-    if (!hasModuleAccess || !hasDeskRole) {
+    // Internal-only pricing pages — admin/manager only. Sales must never see these.
+    const internalPages = new Set(['pricing-desk', 'pricing-worksheet', 'sourcing-outbox', 'pricing-ledger', 'price-requests', 'pricing-parser-review']);
+    const hasInternalRole = !internalPages.has(currentPage) || profile.role === 'admin' || profile.role === 'manager';
+    if (!hasModuleAccess || !hasInternalRole) {
       return <Navigate to="/dashboard" replace />;
     }
   }
@@ -164,6 +170,14 @@ function AppContent() {
         return <PricingDesk />;
       case 'pricing-ledger':
         return <PricingLedger />;
+      case 'pricing-parser-review':
+        return <PricingParserReview />;
+      case 'pricing-dashboard':
+        return <PricingDashboard />;
+      case 'pricing-worksheet':
+        return <PricingWorksheet />;
+      case 'sourcing-outbox':
+        return <SourcingOutbox />;
       case 'settings':
         return <Settings />;
       default:

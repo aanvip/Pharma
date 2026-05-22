@@ -93,9 +93,17 @@ export function ExtractData() {
         return;
       }
 
+      // Safety: do NOT read Gmail access_token / refresh_token in the frontend.
+      // The Edge Function must look up the connection server-side using the
+      // caller's JWT. We only verify a connection exists here for a friendly
+      // error message.
+      // TODO: ensure extract-gmail-contacts is updated to derive sender from
+      // the JWT and fetch its own tokens server-side. Until then this call
+      // will fail with a clear error if the function still requires tokens
+      // in the body — that is preferable to exposing tokens in the browser.
       const { data: connection, error: connectionError } = await supabase
         .from('gmail_connections')
-        .select('*')
+        .select('id, is_connected')
         .eq('user_id', user.id)
         .eq('is_connected', true)
         .maybeSingle();
@@ -105,8 +113,8 @@ export function ExtractData() {
         return;
       }
 
-      if (!connection || !connection.access_token || !connection.refresh_token) {
-        alert('Gmail is not connected properly. Please reconnect Gmail in Settings → Gmail tab.');
+      if (!connection) {
+        alert('Gmail is not connected. Please connect Gmail in Settings → Gmail tab.');
         return;
       }
 
@@ -119,12 +127,7 @@ export function ExtractData() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          access_token: connection.access_token,
-          refresh_token: connection.refresh_token,
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-          client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET,
           max_emails: extractAll ? 5000 : maxEmails,
-          user_id: user.id,
           connection_id: connection.id,
         }),
       });

@@ -21,6 +21,7 @@ interface PriceRequest {
   final_ready: number;
   notes: string | null;
   last_activity_at: string;
+  last_activity_note: string | null;
   created_at: string;
   inquiry?: { inquiry_number: string } | null;
 }
@@ -246,6 +247,7 @@ export function PriceRequests() {
               <tbody className="divide-y divide-gray-100">
                 {filtered.map(pr => {
                   const sm = STATUS_META[pr.overall_status] || STATUS_META.draft;
+                  const allQuoted = pr.total_products > 0 && pr.final_ready === pr.total_products;
                   return (
                     <tr key={pr.id} onClick={() => setDetailId(pr.id)} className="hover:bg-gray-50 cursor-pointer transition-colors">
                       <td className="px-4 py-2.5 text-xs font-medium text-blue-700 whitespace-nowrap">{pr.pr_number}</td>
@@ -253,7 +255,15 @@ export function PriceRequests() {
                       <td className="px-4 py-2.5 text-xs text-gray-500 whitespace-nowrap">{pr.inquiry?.inquiry_number || '-'}</td>
                       <td className="px-4 py-2.5 text-xs text-gray-700 text-center">{pr.total_products}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap"><span className="text-xs text-gray-500">{pr.source_received}/{pr.total_products || '?'}</span></td>
-                      <td className="px-4 py-2.5 whitespace-nowrap"><span className="text-xs text-gray-500">{pr.final_ready}/{pr.total_products || '?'}</span></td>
+                      <td className="px-4 py-2.5 whitespace-nowrap">
+                        {allQuoted ? (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">
+                            <CheckCircle2 className="w-2.5 h-2.5" /> Ready
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-500">{pr.final_ready}/{pr.total_products || '?'}</span>
+                        )}
+                      </td>
                       <td className="px-4 py-2.5 whitespace-nowrap"><span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${sm.color}`}>{sm.label}</span></td>
                       <td className="px-4 py-2.5 text-xs text-gray-400 whitespace-nowrap">{formatDate(pr.last_activity_at)}</td>
                       <td className="px-4 py-2.5"><ChevronRight className="w-3.5 h-3.5 text-gray-400" /></td>

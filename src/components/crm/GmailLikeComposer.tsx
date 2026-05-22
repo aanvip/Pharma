@@ -295,8 +295,7 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, mode = 'general', 
           body,
           isHtml: true,
           senderName: currentUserName,
-          googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-          googleClientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET,
+          workflowType: 'crm_bulk_email',
         },
       });
 
