@@ -19,7 +19,7 @@ interface DeskItem {
   final_quote_currency: string;
   remarks: string | null;
   price_request_id: string;
-  pr?: { pr_number: string; customer_name: string | null } | null;
+  pr?: { pr_number: string; customer_name: string | null; assigned_to: string | null } | null;
 }
 
 const SOURCE_COLORS: Record<string, string> = {
@@ -37,15 +37,69 @@ async function recalcPriceRequestCounters(priceRequestId: string) {
 
   if (!prItems) return;
 
-  await supabase.from('price_requests').update({
+  const sourceReceived = prItems.filter(i => i.price_status === 'received').length;
+  const finalReady = prItems.filter(i => !!i.final_quote_price).length;
+  const allDone = finalReady === prItems.length && prItems.length > 0;
+
+  const update: Record<string, unknown> = {
     total_products: prItems.length,
-    source_pending: prItems.filter(i => i.price_status === 'pending').length,
-    source_received: prItems.filter(i => i.price_status === 'received').length,
-    final_ready: prItems.filter(i => !!i.final_quote_price).length,
+    source_pending: prItems.filter(i => ['pending', 'sourcing_request_sent', 'waiting_reply'].includes(i.price_status)).length,
+    source_received: sourceReceived,
+    final_ready: finalReady,
     final_pending: prItems.filter(i => !i.final_quote_price).length,
     last_activity_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-  }).eq('id', priceRequestId);
+  };
+
+  // "Ready for quote" ≠ "quote sent". We never auto-promote to 'quoted'
+  // here — that only happens after the customer quote email is actually
+  // sent (PrepareCustomerQuoteModal.sendQuote).
+  const { data: pr } = await supabase
+    .from('price_requests')
+    .select('overall_status, inquiry_id')
+    .eq('id', priceRequestId)
+    .maybeSingle();
+  const current = pr?.overall_status;
+  if (!current || current === 'sourcing' || current === 'draft') {
+    update.overall_status = 'pricing';
+  }
+  // If already 'pricing', 'quoted', 'won', 'lost' — leave it unchanged.
+
+  await supabase.from('price_requests').update(update).eq('id', priceRequestId);
+
+  // Mirror "price ready" flag on the linked inquiry. This represents the
+  // sales-ready state (final price entered) — NOT that a quote has been
+  // sent. When items become non-ready again, reset the flag.
+  if (pr?.inquiry_id) {
+    await supabase
+      .from('crm_inquiries')
+      .update({ price_ready: allDone, updated_at: new Date().toISOString() })
+      .eq('id', pr.inquiry_id);
+  }
+}
+
+async function notifyAssignedUser(priceRequestId: string, productName: string, finalPrice: number, currency: string) {
+  try {
+    const { data: pr } = await supabase
+      .from('price_requests')
+      .select('assigned_to, pr_number, customer_name')
+      .eq('id', priceRequestId)
+      .maybeSingle();
+
+    if (!pr?.assigned_to) return;
+
+    const insertResult = supabase.from('notifications').insert({
+      user_id: pr.assigned_to,
+      title: 'Final quote ready',
+      message: `Final quote entered for ${productName} (${currency} ${finalPrice.toLocaleString()}) — ${pr.pr_number}${pr.customer_name ? ` · ${pr.customer_name}` : ''}`,
+      type: 'pricing',
+      reference_id: priceRequestId,
+      reference_type: 'price_request',
+    });
+    await Promise.resolve(insertResult).catch(() => {}); // notifications table may not exist; suppress errors
+  } catch {
+    // ignore notification failures
+  }
 }
 
 export function PricingDesk() {
@@ -60,7 +114,7 @@ export function PricingDesk() {
     setLoading(true);
     const { data } = await supabase
       .from('price_request_items')
-      .select('*, pr:price_requests(pr_number, customer_name)')
+      .select('*, pr:price_requests(pr_number, customer_name, assigned_to)')
       .eq('price_status', 'received')
       .is('final_quote_price', null)
       .order('created_at');
@@ -113,9 +167,11 @@ export function PricingDesk() {
       actor_id: profile?.id || null,
       actor_name: profile?.full_name || profile?.username || null,
       description: `Final quote entered for ${item.product_name}: ${e.currency} ${price.toLocaleString()}`,
+      metadata: { final_quoted_price: price, currency: e.currency, source_price: item.source_price, source_currency: item.source_currency },
     });
 
     await recalcPriceRequestCounters(item.price_request_id);
+    await notifyAssignedUser(item.price_request_id, item.product_name, price, e.currency);
 
     setDone(d => new Set([...d, item.id]));
     setEditing(e => { const n = { ...e }; delete n[item.id]; return n; });
@@ -128,7 +184,7 @@ export function PricingDesk() {
       <div className="p-4 md:p-6">
         <div className="mb-4">
           <h1 className="text-lg font-semibold text-gray-900">Pricing Desk</h1>
-          <p className="text-xs text-gray-500 mt-0.5">Products with source price received - enter final USD quote</p>
+          <p className="text-xs text-gray-500 mt-0.5">Products with source price received — enter final USD quote</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -144,7 +200,7 @@ export function PricingDesk() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    {['PR #', 'Customer', 'Product', 'Spec', 'Qty', 'Source', 'Source Price', 'Target', 'Competitor', 'Final Quote', 'Remarks', ''].map(h => (
+                    {['PR #', 'Customer', 'Product', 'Spec', 'Qty', 'Source', 'Source Price', 'Target', 'Competitor', 'Remarks', 'Final Quote', ''].map(h => (
                       <th key={h} className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -161,9 +217,16 @@ export function PricingDesk() {
                         <td className="px-3 py-2 text-xs text-gray-500 max-w-[100px] truncate">{item.specification || '-'}</td>
                         <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{item.quantity ? `${item.quantity} ${item.unit || ''}` : '-'}</td>
                         <td className="px-3 py-2"><span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium ${SOURCE_COLORS[item.source_type]}`}>{item.source_type}</span></td>
-                        <td className="px-3 py-2 text-xs text-gray-700 whitespace-nowrap">{item.source_price ? `${item.source_currency} ${item.source_price.toLocaleString()}` : '-'}</td>
+                        <td className="px-3 py-2 text-xs font-medium text-gray-800 whitespace-nowrap">
+                          {item.source_price ? (
+                            <span className="text-gray-800">{item.source_currency} {item.source_price.toLocaleString()}</span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
                         <td className="px-3 py-2 text-xs text-gray-500">{item.target_price ? `$${item.target_price}` : '-'}</td>
                         <td className="px-3 py-2 text-xs text-gray-500">{item.competitor_price ? `$${item.competitor_price}` : '-'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-500 max-w-[120px] truncate" title={item.remarks || ''}>{item.remarks || '-'}</td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           {isDone ? (
                             <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Saved</span>
@@ -179,9 +242,6 @@ export function PricingDesk() {
                           ) : (
                             <button onClick={() => startEdit(item)} className="text-xs text-blue-600 hover:text-blue-700 font-medium">Enter price</button>
                           )}
-                        </td>
-                        <td className="px-3 py-2">
-                          {e && <input value={e.remarks} onChange={ev => setEditing(ed => ({ ...ed, [item.id]: { ...ed[item.id], remarks: ev.target.value } }))} placeholder="Remarks" className="w-28 border border-gray-300 rounded px-2 py-0.5 text-xs focus:outline-none" />}
                         </td>
                         <td className="px-3 py-2">
                           {e && !isDone && (

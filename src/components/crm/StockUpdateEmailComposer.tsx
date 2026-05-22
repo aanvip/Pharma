@@ -116,7 +116,7 @@ export function StockUpdateEmailComposer({ onClose, onComplete }: Props) {
 
       const resp = await fetch(`${supabaseUrl}/functions/v1/send-bulk-email`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session.access_token}` },
-        body: JSON.stringify({ userId: user.id, toEmails, subject: `[TEST] ${personalizedSubject}`, body: personalizedBody, contactId, senderName: '', isHtml: true }),
+        body: JSON.stringify({ userId: user.id, toEmails, subject: `[TEST] ${personalizedSubject}`, body: personalizedBody, contactId, senderName: '', isHtml: true, workflowType: 'stock_update' }),
       });
       const data = await resp.json();
       if (data.success) {

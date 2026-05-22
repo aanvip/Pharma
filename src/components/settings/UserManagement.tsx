@@ -427,6 +427,7 @@ interface InlinePermissionsPanelProps {
 function InlinePermissionsPanel({ user, onClose, onSaved }: InlinePermissionsPanelProps) {
   const [perms, setPerms] = useState<Record<ModuleId, boolean> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showAdvancedModules, setShowAdvancedModules] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -502,6 +503,11 @@ function InlinePermissionsPanel({ user, onClose, onSaved }: InlinePermissionsPan
           <span className="text-xs text-gray-400">— {user.full_name}</span>
         </div>
         <div className="flex items-center gap-2">
+          <label className="text-[11px] flex items-center gap-1.5 text-gray-600 mr-2 cursor-pointer">
+            <input type="checkbox" checked={showAdvancedModules} onChange={e => setShowAdvancedModules(e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+            Show advanced
+          </label>
           <button onClick={() => toggleAll(true)} disabled={allOn}
             className="text-xs px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded hover:bg-green-100 transition disabled:opacity-40">
             Enable All
@@ -514,7 +520,9 @@ function InlinePermissionsPanel({ user, onClose, onSaved }: InlinePermissionsPan
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-4">
-        {ALL_MODULES.map(mod => (
+        {ALL_MODULES
+          .filter((mod) => !('advanced' in mod) || !mod.advanced || showAdvancedModules)
+          .map(mod => (
           <label key={mod.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
             perms[mod.id]
               ? 'bg-white border-green-300 text-gray-800'
