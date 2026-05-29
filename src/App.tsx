@@ -42,6 +42,7 @@ const PricingParserReview = lazy(() => import('./pages/PricingParserReview').the
 const PricingDashboard = lazy(() => import('./pages/PricingDashboard').then(m => ({ default: m.PricingDashboard })));
 const PricingWorksheet = lazy(() => import('./pages/PricingWorksheet').then(m => ({ default: m.PricingWorksheet })));
 const SourcingOutbox = lazy(() => import('./pages/SourcingOutbox').then(m => ({ default: m.SourcingOutbox })));
+const routerBasename = import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL;
 
 function LoadingFallback() {
   return (
@@ -199,7 +200,7 @@ function AppContent() {
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename}>
       <AuthProvider>
         <LanguageProvider>
           <NavigationProvider>
