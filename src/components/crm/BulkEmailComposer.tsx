@@ -237,10 +237,15 @@ export function BulkEmailComposer({ selectedCustomers, onClose, onComplete }: Bu
         return;
       }
 
-      // Create campaign record using only columns that exist on bulk_email_campaigns
-      // (subject, total_recipients, sent_count, failed_count, status,
-      //  has_attachments, template_id, created_by). If the insert fails, surface
-      // a warning but do NOT block the send — emails still go out.
+      const { data: settings } = await supabase
+        .from('app_settings')
+        .select('bulk_email_batch_size, bulk_email_batch_delay_seconds')
+        .limit(1)
+        .maybeSingle();
+
+      // email_body and sender_name go in the initial INSERT so they are always
+      // persisted atomically — if only a separate UPDATE were used and it failed
+      // silently, retry would have no body to send.
       const { data: campaign, error: campaignErr } = await supabase
         .from('bulk_email_campaigns')
         .insert({
@@ -252,6 +257,11 @@ export function BulkEmailComposer({ selectedCustomers, onClose, onComplete }: Bu
           has_attachments: attachments.length > 0,
           template_id: selectedTemplate?.id || null,
           created_by: user.id,
+          email_body: currentHtml,
+          sender_name: senderName,
+          processing_batch_size: Math.max(1, Number(settings?.bulk_email_batch_size || 10)),
+          processing_delay_seconds: Math.max(0, Number(settings?.bulk_email_batch_delay_seconds || intervalSeconds || 30)),
+          next_run_at: new Date().toISOString(),
         })
         .select('id')
         .single();
@@ -261,28 +271,17 @@ export function BulkEmailComposer({ selectedCustomers, onClose, onComplete }: Bu
       }
       const campaignId: string | null = campaign?.id || null;
 
-      const { data: settings } = await supabase
-        .from('app_settings')
-        .select('bulk_email_batch_size, bulk_email_batch_delay_seconds')
-        .limit(1)
-        .maybeSingle();
-
+      // Upload attachments after campaign row exists so storage paths reference campaignId
       const attachmentUrls = campaignId
         ? await Promise.all(attachments.map(att => uploadBulkEmailAttachment(campaignId, att)))
         : [];
 
-      if (campaignId) {
-        await supabase
+      if (campaignId && attachmentUrls.length > 0) {
+        const { error: attErr } = await supabase
           .from('bulk_email_campaigns')
-          .update({
-            email_body: currentHtml,
-            sender_name: senderName,
-            attachments_context: attachmentUrls,
-            processing_batch_size: Math.max(1, Number(settings?.bulk_email_batch_size || 10)),
-            processing_delay_seconds: Math.max(0, Number(settings?.bulk_email_batch_delay_seconds || intervalSeconds || 30)),
-            next_run_at: new Date().toISOString(),
-          })
+          .update({ attachments_context: attachmentUrls })
           .eq('id', campaignId);
+        if (attErr) throw new Error(`Failed to save attachment metadata: ${attErr.message}`);
       }
 
       // Insert all recipients as 'pending' up-front — only if the campaign

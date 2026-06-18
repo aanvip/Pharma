@@ -199,12 +199,31 @@ export function DeliveryLog() {
 
       const { data: campaign, error: campaignErr } = await supabase
         .from('bulk_email_campaigns')
-        .select('id, email_body')
+        .select('id, email_body, template_id')
         .eq('id', campaignId)
         .single();
 
       if (campaignErr || !campaign) throw new Error('Campaign metadata not found');
-      if (!campaign.email_body) throw new Error('Campaign body/template metadata is missing, cannot retry send');
+
+      // If email_body was not persisted (legacy campaign), fall back to the
+      // template that was selected at send time and patch the record so future
+      // retries don't need to do this again.
+      if (!campaign.email_body && campaign.template_id) {
+        const { data: tpl } = await supabase
+          .from('crm_email_templates')
+          .select('body')
+          .eq('id', campaign.template_id)
+          .single();
+        if (tpl?.body) {
+          await supabase
+            .from('bulk_email_campaigns')
+            .update({ email_body: tpl.body })
+            .eq('id', campaignId);
+          campaign.email_body = tpl.body;
+        }
+      }
+
+      if (!campaign.email_body) throw new Error('Campaign body is missing — the original email body was not saved and no template is linked. Please create a new campaign.');
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const retryIds = targetRecipients.map(r => r.id);
       const { error: resetErr } = await supabase

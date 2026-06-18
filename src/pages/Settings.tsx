@@ -187,36 +187,86 @@ export function Settings() {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const saveToDb = async (payload: Partial<typeof formData>) => {
+    if (settings) {
+      const { error } = await supabase
+        .from('app_settings')
+        .update(payload)
+        .eq('id', settings.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from('app_settings')
+        .insert([{ ...formData, ...payload }]);
+      if (error) throw error;
+    }
+  };
+
+  const handleSaveCompany = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-
     try {
-      const settingsPayload = {
-        ...formData,
+      await saveToDb({
+        company_name: formData.company_name,
+        company_address: formData.company_address,
+        company_phone: formData.company_phone,
+        company_email: formData.company_email,
+        tax_rate: formData.tax_rate,
+        invoice_prefix: formData.invoice_prefix,
+        invoice_start_number: formData.invoice_start_number,
+      });
+      alert('Settings saved successfully!');
+      loadSettings();
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Failed to save settings. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveFinancial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await saveToDb({
+        financial_year_start: formData.financial_year_start,
+        financial_year_end: formData.financial_year_end,
+        current_financial_year: formData.current_financial_year,
+      });
+      alert('Settings saved successfully!');
+      loadSettings();
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Failed to save settings. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveSystem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      // Worker URL/secret: if the field is empty but the DB had a value, preserve
+      // the existing value — browser credential autofill can wipe these silently.
+      await saveToDb({
+        low_stock_threshold: formData.low_stock_threshold,
+        expiry_alert_days: formData.expiry_alert_days,
         email_host: formData.email_host || null,
+        email_port: formData.email_port,
         email_username: formData.email_username || null,
+        rounding_tolerance_amount: formData.rounding_tolerance_amount,
         rounding_writeoff_account_id: formData.rounding_writeoff_account_id || null,
         rounding_gain_account_id: formData.rounding_gain_account_id || null,
-        bulk_email_worker_url: formData.bulk_email_worker_url || null,
-        bulk_email_worker_secret: formData.bulk_email_worker_secret || null,
-      };
-
-      if (settings) {
-        const { error } = await supabase
-          .from('app_settings')
-          .update(settingsPayload)
-          .eq('id', settings.id);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('app_settings')
-          .insert([settingsPayload]);
-
-        if (error) throw error;
-      }
-
+        bulk_email_batch_size: formData.bulk_email_batch_size,
+        bulk_email_batch_delay_seconds: formData.bulk_email_batch_delay_seconds,
+        bulk_email_worker_url:
+          formData.bulk_email_worker_url || settings?.bulk_email_worker_url || null,
+        bulk_email_worker_secret:
+          formData.bulk_email_worker_secret || settings?.bulk_email_worker_secret || null,
+        default_language: formData.default_language,
+      });
       alert('Settings saved successfully!');
       loadSettings();
     } catch (error) {
@@ -511,7 +561,7 @@ export function Settings() {
             )}
 
             {activeTab === 'company' && (
-              <form onSubmit={handleSave} className="space-y-6">
+              <form onSubmit={handleSaveCompany} className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <Building2 className="w-5 h-5" />
@@ -635,7 +685,7 @@ export function Settings() {
             )}
 
             {activeTab === 'financial' && (
-              <form onSubmit={handleSave} className="space-y-6">
+              <form onSubmit={handleSaveFinancial} className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <Calendar className="w-5 h-5" />
@@ -734,7 +784,7 @@ export function Settings() {
             )}
 
             {activeTab === 'system' && (
-              <form onSubmit={handleSave} className="space-y-6">
+              <form onSubmit={handleSaveSystem} className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <Package className="w-5 h-5" />
@@ -916,6 +966,7 @@ export function Settings() {
                         onChange={(e) => setFormData({ ...formData, bulk_email_worker_url: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         placeholder="https://PROJECT.supabase.co/functions/v1/process-bulk-email-campaign"
+                        autoComplete="off"
                       />
                     </div>
 
@@ -929,6 +980,7 @@ export function Settings() {
                         onChange={(e) => setFormData({ ...formData, bulk_email_worker_secret: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         placeholder="Same value as BULK_EMAIL_WORKER_SECRET"
+                        autoComplete="new-password"
                       />
                     </div>
                   </div>
