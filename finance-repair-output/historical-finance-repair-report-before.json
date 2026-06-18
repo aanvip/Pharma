@@ -1,0 +1,3384 @@
+{
+  "summary": {
+    "missing_cogs_correction_count": 32,
+    "missing_cogs_correction_total": 3019847625.32,
+    "unbalanced_journal_count": 3,
+    "unbalanced_journal_total_delta": -1029648.2,
+    "stock_adjustment_count": 2,
+    "stock_valuation_impact": -7755746.95,
+    "inventory_gl": {
+      "account_1130_gl": -665822.77,
+      "batch_valuation": 1554947363.56,
+      "variance_gl_minus_batch": -1555613186.33
+    },
+    "trial_balance_delta_debit_minus_credit": -1029648.2
+  },
+  "report": {
+    "generated_at": "2026-06-03T03:51:52.451Z",
+    "accounts": {
+      "cogs_5100": {
+        "id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+        "code": "5100",
+        "name": "COGS - Materials",
+        "account_type": "expense"
+      },
+      "inventory_1130": {
+        "id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+        "code": "1130",
+        "name": "Inventory",
+        "account_type": "asset"
+      },
+      "prepaid_1140_used_for_missing_ppn_input": {
+        "id": "a36fb65b-ff03-4bb6-9edb-e216a54c0fe6",
+        "code": "1140",
+        "name": "Prepaid Expenses",
+        "account_type": "asset"
+      },
+      "ppn_input_1150_exists": false
+    },
+    "missing_cogs": {
+      "count": 32,
+      "total_expected_cogs": 3020748986.99,
+      "total_posted_cogs_on_affected_invoices": 901361.67,
+      "total_correction": 3019847625.32,
+      "test_invoice_correction_total": 296001.19,
+      "issues": [
+        {
+          "invoice_id": "b2ac6308-bfa5-4a07-b534-b25b78b32155",
+          "invoice_number": "SAPJ-26-002",
+          "invoice_date": "2026-01-15",
+          "customer_id": "6dfbae47-f590-456b-bcbd-99e8d85963a1",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 568242957,
+          "posted_cogs": 0,
+          "correction_amount": 568242957,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "c22d70c6-e9fd-4390-82d9-983ae35096ce",
+              "batch_number": "XMEP250178",
+              "product_name": "Cefixime USP",
+              "quantity": 300,
+              "landed_cost_per_unit": 1894143.19,
+              "value": 568242957
+            }
+          ]
+        },
+        {
+          "invoice_id": "f438f21c-6274-4ac3-b623-b40ee60b3a79",
+          "invoice_number": "SAPJ-26-010",
+          "invoice_date": "2026-04-10",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 489719970,
+          "posted_cogs": 0,
+          "correction_amount": 489719970,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "49fac1bc-54c1-4234-8637-d3c370064302",
+              "batch_number": "4001/1101/25/A-4632",
+              "product_name": "Ibuprofen BP",
+              "quantity": 1000,
+              "landed_cost_per_unit": 163239.99,
+              "value": 163239990
+            },
+            {
+              "batch_id": "82a80a31-b3ce-487d-b3d1-1d696d6bc588",
+              "batch_number": "4001/1101/25/A-4276",
+              "product_name": "Ibuprofen BP",
+              "quantity": 1000,
+              "landed_cost_per_unit": 163239.99,
+              "value": 163239990
+            },
+            {
+              "batch_id": "ebb4813e-9eea-4951-b622-b35489c2e082",
+              "batch_number": "4001/1101/25/A-4277",
+              "product_name": "Ibuprofen BP",
+              "quantity": 1000,
+              "landed_cost_per_unit": 163239.99,
+              "value": 163239990
+            }
+          ]
+        },
+        {
+          "invoice_id": "fa9834dc-3a4d-47d9-953e-7bacd5479bcd",
+          "invoice_number": "SAPJ-26-016",
+          "invoice_date": "2026-05-04",
+          "customer_id": "26f452e7-3afc-4257-bb1f-d0a3c230fb9c",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 378828638,
+          "posted_cogs": 0,
+          "correction_amount": 378828638,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "c22d70c6-e9fd-4390-82d9-983ae35096ce",
+              "batch_number": "XMEP250178",
+              "product_name": "Cefixime USP",
+              "quantity": 200,
+              "landed_cost_per_unit": 1894143.19,
+              "value": 378828638
+            }
+          ]
+        },
+        {
+          "invoice_id": "5d602dbd-0b0d-4c73-ad43-2fc979903032",
+          "invoice_number": "SAPJ-005",
+          "invoice_date": "2025-11-29",
+          "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684",
+          "created_by": null,
+          "expected_cogs": 311990240,
+          "posted_cogs": 0,
+          "correction_amount": 311990240,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "cb7b0b87-79be-40e5-844d-b2bcfed2727e",
+              "batch_number": "4001/1101/25/A-3145",
+              "product_name": "Ibuprofen BP",
+              "quantity": 600,
+              "landed_cost_per_unit": 155995.12,
+              "value": 93597072
+            },
+            {
+              "batch_id": "c20fe01a-fbe3-43ba-93cc-0a2175fee19a",
+              "batch_number": "4001/1101/25/A-3146",
+              "product_name": "Ibuprofen BP",
+              "quantity": 350,
+              "landed_cost_per_unit": 155995.12,
+              "value": 54598292
+            },
+            {
+              "batch_id": "cb5539e0-4c14-4086-ba30-92cf194d5db2",
+              "batch_number": "4001/1101/25/A-3147",
+              "product_name": "Ibuprofen BP",
+              "quantity": 400,
+              "landed_cost_per_unit": 155995.12,
+              "value": 62398048
+            },
+            {
+              "batch_id": "cb7b0b87-79be-40e5-844d-b2bcfed2727e",
+              "batch_number": "4001/1101/25/A-3145",
+              "product_name": "Ibuprofen BP",
+              "quantity": 150,
+              "landed_cost_per_unit": 155995.12,
+              "value": 23399268
+            },
+            {
+              "batch_id": "c20fe01a-fbe3-43ba-93cc-0a2175fee19a",
+              "batch_number": "4001/1101/25/A-3146",
+              "product_name": "Ibuprofen BP",
+              "quantity": 500,
+              "landed_cost_per_unit": 155995.12,
+              "value": 77997560
+            }
+          ]
+        },
+        {
+          "invoice_id": "182602a2-9e2f-45cf-a69c-d77d59f46054",
+          "invoice_number": "SAPJ-26-005",
+          "invoice_date": "2026-02-16",
+          "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 192088750,
+          "posted_cogs": 0,
+          "correction_amount": 192088750,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "07d37743-ed11-4baa-bf79-ae59a5ac336c",
+              "batch_number": "M1CFX10003625N",
+              "product_name": "Cefixime Trihydrate Powder Micronized",
+              "quantity": 100,
+              "landed_cost_per_unit": 1920887.5,
+              "value": 192088750
+            }
+          ]
+        },
+        {
+          "invoice_id": "300e00ac-8641-4893-8d35-93972eff04b2",
+          "invoice_number": "SAPJ-26-004",
+          "invoice_date": "2026-02-16",
+          "customer_id": "11f7f041-ccc8-4049-9f13-368783ce2f1e",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 165261630,
+          "posted_cogs": 0,
+          "correction_amount": 165261630,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "576eeb3d-3ebd-4477-ba2e-b2ca82770912",
+              "batch_number": "4002/1101/25/A-0512B",
+              "product_name": "Ibuprofen USP",
+              "quantity": 1000,
+              "landed_cost_per_unit": 165261.63,
+              "value": 165261630
+            }
+          ]
+        },
+        {
+          "invoice_id": "4030d13f-d41a-4201-8257-a93604641598",
+          "invoice_number": "SAPJ-010",
+          "invoice_date": "2025-12-24",
+          "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 162536031,
+          "posted_cogs": 0,
+          "correction_amount": 162536031,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "91dbb295-5284-42e6-a7df-bb605ef59e31",
+              "batch_number": "KET / 125100608",
+              "product_name": "Ketoconazole USP",
+              "quantity": 150,
+              "landed_cost_per_unit": 1083573.54,
+              "value": 162536031
+            }
+          ]
+        },
+        {
+          "invoice_id": "03162b99-b06b-475b-b00c-e14cb9dd6123",
+          "invoice_number": "SAPJ-26-013",
+          "invoice_date": "2026-04-13",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 104380524,
+          "posted_cogs": 0,
+          "correction_amount": 104380524,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "fbe27e70-5828-4a2d-a1d7-a8b5394328eb",
+              "batch_number": "B108/2026",
+              "product_name": "Corn Starch BP",
+              "quantity": 2550,
+              "landed_cost_per_unit": 9502.72,
+              "value": 24231936
+            },
+            {
+              "batch_id": "30293586-9382-4eeb-8c4d-67a84a70325f",
+              "batch_number": "B109/2026",
+              "product_name": "Corn Starch BP",
+              "quantity": 8450,
+              "landed_cost_per_unit": 9485.04,
+              "value": 80148588
+            }
+          ]
+        },
+        {
+          "invoice_id": "12aef5ac-e4c3-446e-b92e-baff1d841f1d",
+          "invoice_number": "SAPJ-26-001",
+          "invoice_date": "2026-01-15",
+          "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 70223442,
+          "posted_cogs": 0,
+          "correction_amount": 70223442,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "c1983658-809f-4448-ad77-4e24b8835f87",
+              "batch_number": "PRAH0640725",
+              "product_name": "Piroxicam USP",
+              "quantity": 100,
+              "landed_cost_per_unit": 702234.42,
+              "value": 70223442
+            }
+          ]
+        },
+        {
+          "invoice_id": "fbb11a73-7935-469b-991b-32daf13dae4e",
+          "invoice_number": "SAPJ-009",
+          "invoice_date": "2025-12-15",
+          "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 70197804,
+          "posted_cogs": 0,
+          "correction_amount": 70197804,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "c20fe01a-fbe3-43ba-93cc-0a2175fee19a",
+              "batch_number": "4001/1101/25/A-3146",
+              "product_name": "Ibuprofen BP",
+              "quantity": 50,
+              "landed_cost_per_unit": 155995.12,
+              "value": 7799756
+            },
+            {
+              "batch_id": "cb5539e0-4c14-4086-ba30-92cf194d5db2",
+              "batch_number": "4001/1101/25/A-3147",
+              "product_name": "Ibuprofen BP",
+              "quantity": 400,
+              "landed_cost_per_unit": 155995.12,
+              "value": 62398048
+            }
+          ]
+        },
+        {
+          "invoice_id": "662a7c07-df0a-463a-ba0c-2cff6381907f",
+          "invoice_number": "SAPJ-26-017",
+          "invoice_date": "2026-05-05",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 70197804,
+          "posted_cogs": 0,
+          "correction_amount": 70197804,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "cb7b0b87-79be-40e5-844d-b2bcfed2727e",
+              "batch_number": "4001/1101/25/A-3145",
+              "product_name": "Ibuprofen BP",
+              "quantity": 250,
+              "landed_cost_per_unit": 155995.12,
+              "value": 38998780
+            },
+            {
+              "batch_id": "c20fe01a-fbe3-43ba-93cc-0a2175fee19a",
+              "batch_number": "4001/1101/25/A-3146",
+              "product_name": "Ibuprofen BP",
+              "quantity": 50,
+              "landed_cost_per_unit": 155995.12,
+              "value": 7799756
+            },
+            {
+              "batch_id": "cb5539e0-4c14-4086-ba30-92cf194d5db2",
+              "batch_number": "4001/1101/25/A-3147",
+              "product_name": "Ibuprofen BP",
+              "quantity": 150,
+              "landed_cost_per_unit": 155995.12,
+              "value": 23399268
+            }
+          ]
+        },
+        {
+          "invoice_id": "22c3799b-59dd-4ddb-9085-b4a68e6dbedc",
+          "invoice_number": "SAPJ-26-018",
+          "invoice_date": "2026-05-07",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 66509316,
+          "posted_cogs": 0,
+          "correction_amount": 66509316,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "fbe27e70-5828-4a2d-a1d7-a8b5394328eb",
+              "batch_number": "B108/2026",
+              "product_name": "Corn Starch BP",
+              "quantity": 6450,
+              "landed_cost_per_unit": 9502.72,
+              "value": 61292544
+            },
+            {
+              "batch_id": "30293586-9382-4eeb-8c4d-67a84a70325f",
+              "batch_number": "B109/2026",
+              "product_name": "Corn Starch BP",
+              "quantity": 550,
+              "landed_cost_per_unit": 9485.04,
+              "value": 5216772
+            }
+          ]
+        },
+        {
+          "invoice_id": "850ff16e-7cf3-447f-bf3e-99ed8135eba3",
+          "invoice_number": "SAPJ-26-019",
+          "invoice_date": "2026-05-07",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 49401967.5,
+          "posted_cogs": 0,
+          "correction_amount": 49401967.5,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "b9a3e457-4faa-4a89-882c-018071e2460b",
+              "batch_number": "17721025",
+              "product_name": "Sulfamethoxazole USP",
+              "quantity": 250,
+              "landed_cost_per_unit": 197607.87,
+              "value": 49401967.5
+            }
+          ]
+        },
+        {
+          "invoice_id": "0709e1a2-bc80-4b64-a93d-52776293f44a",
+          "invoice_number": "SAPJ-26-003",
+          "invoice_date": "2026-02-09",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "a82db049-ed45-4861-a115-a20155129f3a",
+          "expected_cogs": 39326127.3,
+          "posted_cogs": 0,
+          "correction_amount": 39326127.3,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "f767785c-1d74-4b03-b7be-1e6cd6b8282f",
+              "batch_number": "DX/L/25/0048",
+              "product_name": "Dextromethorphan Hydrobromide USP",
+              "quantity": 30,
+              "landed_cost_per_unit": 1310870.91,
+              "value": 39326127.3
+            }
+          ]
+        },
+        {
+          "invoice_id": "1c99831b-5364-4be9-99c4-59e266ec79ee",
+          "invoice_number": "SAPJ-26-014",
+          "invoice_date": "2026-04-14",
+          "customer_id": "33bab483-e4b0-4a3a-a0cc-e5309c170ce1",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 39326127.3,
+          "posted_cogs": 0,
+          "correction_amount": 39326127.3,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "f767785c-1d74-4b03-b7be-1e6cd6b8282f",
+              "batch_number": "DX/L/25/0048",
+              "product_name": "Dextromethorphan Hydrobromide USP",
+              "quantity": 30,
+              "landed_cost_per_unit": 1310870.91,
+              "value": 39326127.3
+            }
+          ]
+        },
+        {
+          "invoice_id": "246f8684-a51c-4f09-a5e0-dac7aab39ae6",
+          "invoice_number": "SAPJ-008",
+          "invoice_date": "2025-12-16",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 33794921.25,
+          "posted_cogs": 8677.98,
+          "correction_amount": 33786243.27,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "3f33b652-59ec-4fbb-91a5-0cc01f2a0266",
+              "batch_number": "1699/2025",
+              "product_name": "Corn Starch BP",
+              "quantity": 2775,
+              "landed_cost_per_unit": 12178.35,
+              "value": 33794921.25
+            }
+          ]
+        },
+        {
+          "invoice_id": "0752ad11-554b-4893-b5a6-d671ed60e900",
+          "invoice_number": "SAPJ-26-011",
+          "invoice_date": "2026-04-10",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 31823611,
+          "posted_cogs": 0,
+          "correction_amount": 31823611,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "5404fca3-40ac-4525-af04-e3a1a73de372",
+              "batch_number": "BDM/2510066",
+              "product_name": "Domperidone Maleate BP",
+              "quantity": 50,
+              "landed_cost_per_unit": 636472.22,
+              "value": 31823611
+            }
+          ]
+        },
+        {
+          "invoice_id": "10d6aa18-82bb-4cb5-825b-7e29629aa148",
+          "invoice_number": "SAPJ-002",
+          "invoice_date": "2025-12-02",
+          "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 30095880,
+          "posted_cogs": 17267.25,
+          "correction_amount": 30078612.75,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "69c774d1-f347-4347-9112-5277f8729598",
+              "batch_number": "NHP25062",
+              "product_name": "Ammonium Chloride USP ",
+              "quantity": 1500,
+              "landed_cost_per_unit": 20063.92,
+              "value": 30095880
+            }
+          ]
+        },
+        {
+          "invoice_id": "6ee5ec11-ee20-46ae-b24c-16a0ffe279e6",
+          "invoice_number": "SAPJ-26-006",
+          "invoice_date": "2026-02-26",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 26217418.2,
+          "posted_cogs": 0,
+          "correction_amount": 26217418.2,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "f767785c-1d74-4b03-b7be-1e6cd6b8282f",
+              "batch_number": "DX/L/25/0048",
+              "product_name": "Dextromethorphan Hydrobromide USP",
+              "quantity": 20,
+              "landed_cost_per_unit": 1310870.91,
+              "value": 26217418.2
+            }
+          ]
+        },
+        {
+          "invoice_id": "4c9ffb98-1e47-4377-8eb6-ec2abdddbb7b",
+          "invoice_number": "SAPJ-003",
+          "invoice_date": "2025-12-02",
+          "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 23473241,
+          "posted_cogs": 231843,
+          "correction_amount": 23241398,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "661ffc10-381b-45fc-8bb6-0482714b8789",
+              "batch_number": "LHCP0350525",
+              "product_name": "Lidocaine HCL USP",
+              "quantity": 100,
+              "landed_cost_per_unit": 234732.41,
+              "value": 23473241
+            }
+          ]
+        },
+        {
+          "invoice_id": "07b8674d-b950-4ca7-b059-089b9626a60b",
+          "invoice_number": "SAPJ-26-021",
+          "invoice_date": "2026-06-02",
+          "customer_id": "b8f9dc5e-2cdf-4527-8960-186bb2a30913",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 22004525,
+          "posted_cogs": 0,
+          "correction_amount": 22004525,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "0db25472-29a7-432f-a847-938f64aab7b0",
+              "batch_number": "250816w2",
+              "product_name": "Microcrystalline Cellulose (PH - 102)",
+              "quantity": 500,
+              "landed_cost_per_unit": 44009.05,
+              "value": 22004525
+            }
+          ]
+        },
+        {
+          "invoice_id": "2cea1d8d-55b8-4126-9adb-fbae7d9a357b",
+          "invoice_number": "SAPJ-26-007",
+          "invoice_date": "2026-02-26",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 17772655,
+          "posted_cogs": 0,
+          "correction_amount": 17772655,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "6e0aa6a6-9f02-4fcd-a65e-b9eedcfd3d92",
+              "batch_number": "DFK/125090136",
+              "product_name": "Diclofenac Potassium",
+              "quantity": 125,
+              "landed_cost_per_unit": 142181.24,
+              "value": 17772655
+            }
+          ]
+        },
+        {
+          "invoice_id": "026cf3ec-62ef-4e59-866a-0f362072830b",
+          "invoice_number": "SAPJ-001",
+          "invoice_date": "2025-12-02",
+          "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 16143616.75,
+          "posted_cogs": 642948,
+          "correction_amount": 15500668.75,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "58797b11-ef96-474e-afc4-b73d5dfcce13",
+              "batch_number": "BDM/2508060",
+              "product_name": "Domperidone Maleate BP",
+              "quantity": 25,
+              "landed_cost_per_unit": 645744.67,
+              "value": 16143616.75
+            }
+          ]
+        },
+        {
+          "invoice_id": "df6059f9-365b-48eb-b3d6-273f4a8b297d",
+          "invoice_number": "SAPJ-011",
+          "invoice_date": "2025-12-24",
+          "customer_id": "2adab0d8-20cf-4392-9e66-e3c0227d2826",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 15402660,
+          "posted_cogs": 0,
+          "correction_amount": 15402660,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "7fb3efd0-bdff-4da3-a7f5-0e3aa24fcbe6",
+              "batch_number": "SCPL/MF/014/2025",
+              "product_name": "Mometasone Furoate",
+              "quantity": 250,
+              "landed_cost_per_unit": 61610.64,
+              "value": 15402660
+            }
+          ]
+        },
+        {
+          "invoice_id": "032ed31b-b08e-4061-9801-1a6cb4f6e07b",
+          "invoice_number": "SAPJ-26-012",
+          "invoice_date": "2026-04-13",
+          "customer_id": "ac817bd9-8250-4a98-ae6c-683a2381afb2",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 9502720,
+          "posted_cogs": 0,
+          "correction_amount": 9502720,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "fbe27e70-5828-4a2d-a1d7-a8b5394328eb",
+              "batch_number": "B108/2026",
+              "product_name": "Corn Starch BP",
+              "quantity": 1000,
+              "landed_cost_per_unit": 9502.72,
+              "value": 9502720
+            }
+          ]
+        },
+        {
+          "invoice_id": "6ed2c595-d8b9-4826-83ec-176dd8052d60",
+          "invoice_number": "SAPJ-26-009",
+          "invoice_date": "2026-04-09",
+          "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 7799756,
+          "posted_cogs": 0,
+          "correction_amount": 7799756,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "cb5539e0-4c14-4086-ba30-92cf194d5db2",
+              "batch_number": "4001/1101/25/A-3147",
+              "product_name": "Ibuprofen BP",
+              "quantity": 50,
+              "landed_cost_per_unit": 155995.12,
+              "value": 7799756
+            }
+          ]
+        },
+        {
+          "invoice_id": "5f4eda84-5070-475a-bac8-58552a9c6887",
+          "invoice_number": "SAPJ-26-008",
+          "invoice_date": "2026-03-10",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 3554531,
+          "posted_cogs": 0,
+          "correction_amount": 3554531,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "6e0aa6a6-9f02-4fcd-a65e-b9eedcfd3d92",
+              "batch_number": "DFK/125090136",
+              "product_name": "Diclofenac Potassium",
+              "quantity": 25,
+              "landed_cost_per_unit": 142181.24,
+              "value": 3554531
+            }
+          ]
+        },
+        {
+          "invoice_id": "ba93fe46-6316-4029-bd2c-a22bcd190ec3",
+          "invoice_number": "SAPJ-006",
+          "invoice_date": "2025-12-02",
+          "customer_id": "ac817bd9-8250-4a98-ae6c-683a2381afb2",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 2435670,
+          "posted_cogs": 625.44,
+          "correction_amount": 2435044.56,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "3f33b652-59ec-4fbb-91a5-0cc01f2a0266",
+              "batch_number": "1699/2025",
+              "product_name": "Corn Starch BP",
+              "quantity": 200,
+              "landed_cost_per_unit": 12178.35,
+              "value": 2435670
+            }
+          ]
+        },
+        {
+          "invoice_id": "bebaa804-1a19-4273-ab82-207dada0f8ee",
+          "invoice_number": "SAPJ-26-020",
+          "invoice_date": "2026-05-21",
+          "customer_id": "b8f9dc5e-2cdf-4527-8960-186bb2a30913",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 1100226.25,
+          "posted_cogs": 0,
+          "correction_amount": 1100226.25,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "0db25472-29a7-432f-a847-938f64aab7b0",
+              "batch_number": "250816w2",
+              "product_name": "Microcrystalline Cellulose (PH - 102)",
+              "quantity": 25,
+              "landed_cost_per_unit": 44009.05,
+              "value": 1100226.25
+            }
+          ]
+        },
+        {
+          "invoice_id": "4f6e7ee0-837f-4c42-9eb9-db2dd0d40bac",
+          "invoice_number": "SAPJ-26-015",
+          "invoice_date": "2026-04-22",
+          "customer_id": "de615548-ce42-42b9-9ad9-486f28797b5a",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 1100226.25,
+          "posted_cogs": 0,
+          "correction_amount": 1100226.25,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "0db25472-29a7-432f-a847-938f64aab7b0",
+              "batch_number": "250816w2",
+              "product_name": "Microcrystalline Cellulose (PH - 102)",
+              "quantity": 25,
+              "landed_cost_per_unit": 44009.05,
+              "value": 1100226.25
+            }
+          ]
+        },
+        {
+          "invoice_id": "1e6e52fd-04cd-4139-92c5-657541364193",
+          "invoice_number": "TEST-COGS-405538243-T2",
+          "invoice_date": "2026-06-02",
+          "customer_id": "28bd0ec0-6705-4188-9bb1-82fe5e4da4d8",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 254002.5,
+          "posted_cogs": 0,
+          "correction_amount": 254002.5,
+          "is_test_invoice": true,
+          "evidence": [
+            {
+              "batch_id": "2ef302ab-1ce3-4c95-8024-182b611a9220",
+              "batch_number": "250819W1",
+              "product_name": "Microcrystalline Cellulose (PH - 101)",
+              "quantity": 2,
+              "landed_cost_per_unit": 41998.69,
+              "value": 83997.38
+            },
+            {
+              "batch_id": "2ef302ab-1ce3-4c95-8024-182b611a9220",
+              "batch_number": "250819W1",
+              "product_name": "Microcrystalline Cellulose (PH - 101)",
+              "quantity": 3,
+              "landed_cost_per_unit": 41998.69,
+              "value": 125996.07
+            },
+            {
+              "batch_id": "0db25472-29a7-432f-a847-938f64aab7b0",
+              "batch_number": "250816w2",
+              "product_name": "Microcrystalline Cellulose (PH - 102)",
+              "quantity": 1,
+              "landed_cost_per_unit": 44009.05,
+              "value": 44009.05
+            }
+          ]
+        },
+        {
+          "invoice_id": "376f62f1-1532-45fc-983e-22e69717577a",
+          "invoice_number": "TEST-COGS-405537616-T1",
+          "invoice_date": "2026-06-02",
+          "customer_id": "28bd0ec0-6705-4188-9bb1-82fe5e4da4d8",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 41998.69,
+          "posted_cogs": 0,
+          "correction_amount": 41998.69,
+          "is_test_invoice": true,
+          "evidence": [
+            {
+              "batch_id": "2ef302ab-1ce3-4c95-8024-182b611a9220",
+              "batch_number": "250819W1",
+              "product_name": "Microcrystalline Cellulose (PH - 101)",
+              "quantity": 1,
+              "landed_cost_per_unit": 41998.69,
+              "value": 41998.69
+            }
+          ]
+        }
+      ]
+    },
+    "unbalanced_journals": {
+      "count": 3,
+      "total_delta_debit_minus_credit": -1029648.2,
+      "issues": [
+        {
+          "id": "d403aeb3-13b9-4e17-a3a5-95653dbc1941",
+          "entry_number": "JE-2509-0002",
+          "entry_date": "2025-09-26",
+          "source_module": "purchase_invoice",
+          "reference_id": "52519cbf-d8e5-4aad-9bc8-1b5c1b1ce190",
+          "reference_number": "E0000220/2526",
+          "total_debit": 71581,
+          "total_credit": 70598.5,
+          "delta_debit_minus_credit": 982.5,
+          "max_line_number": 11,
+          "lines": [
+            {
+              "id": "277d919e-5662-4e28-a0e1-b162093029cc",
+              "line_number": 2,
+              "account": "1130 Inventory",
+              "debit": 8350,
+              "credit": 0,
+              "description": "Piroxicam USP 2025 (Non DMF Grade) - HS Code: 29343000, Batch: PRAH0640725, Mfg: Jul 2025, Exp: Jun "
+            },
+            {
+              "id": "10f93b84-7a9e-43ae-b374-a79c3c688556",
+              "line_number": 3,
+              "account": "1130 Inventory",
+              "debit": 15616,
+              "credit": 0,
+              "description": "Dextromethorphan Hydrobromide USP - HS Code: 29339990, Batch: DX/L/25/0048, Mfg: Jun 2025, Exp: May "
+            },
+            {
+              "id": "ec243a4f-55f2-4fcc-a098-c1306fc8173f",
+              "line_number": 4,
+              "account": "1130 Inventory",
+              "debit": 4680,
+              "credit": 0,
+              "description": "Microcrystalline Cellulose PH-101 USP 44/NF 39 - HS Code: 39129090, Batch: 250819W1, Mfg: Aug 2025, "
+            },
+            {
+              "id": "be4886b1-9361-48e1-8759-79bed8c7ef02",
+              "line_number": 5,
+              "account": "1130 Inventory",
+              "debit": 27450,
+              "credit": 0,
+              "description": "Ibuprofen BP 2024 - HS Code: 29163990, Batches: 4001/1101/25/A-3145/3146/3147, Mfg: Aug 2025, Exp: J"
+            },
+            {
+              "id": "00b482de-42f6-4286-85c8-64d04a512e7c",
+              "line_number": 6,
+              "account": "1130 Inventory",
+              "debit": 982.5,
+              "credit": 0,
+              "description": "Domperidone Maleate BP - HS Code: 29225090, Batch: BDM/2508060, Mfg: Aug 2025, Exp: Jul 2030, Mfg by"
+            },
+            {
+              "id": "d249e33b-84be-452e-8b3a-b39f89fb5a90",
+              "line_number": 7,
+              "account": "1130 Inventory",
+              "debit": 3440,
+              "credit": 0,
+              "description": "Cetirizine Hydrochloride USP - HS Code: 29335990, Batch: 25CTH027, Mfg: Aug 2025, Exp: Jul 2029, Mfg"
+            },
+            {
+              "id": "87b7d295-e3ec-4c29-aaa4-3966e37e3452",
+              "line_number": 8,
+              "account": "1130 Inventory",
+              "debit": 1418,
+              "credit": 0,
+              "description": "Lidocaine HCL USP 2025 - HS Code: 29242990, Batch: LHCP0350525, Mfg: May 2025, Exp: Apr 2030, Mfg by"
+            },
+            {
+              "id": "7d2017fe-6083-47cc-8735-ad4fb13825ab",
+              "line_number": 9,
+              "account": "1130 Inventory",
+              "debit": 3742,
+              "credit": 0,
+              "description": "Minoxidil EP 11.0 - HS Code: 29335990, Batch: K007.2/25/07/335, Mfg: Jul 2025, Exp: Jun 2030, Mfg by"
+            },
+            {
+              "id": "7de7405f-56c1-4450-b961-da82299901db",
+              "line_number": 10,
+              "account": "1130 Inventory",
+              "debit": 4920,
+              "credit": 0,
+              "description": "Microcrystalline Cellulose PH-102 USP 44/NF 39 - HS Code: 39129090, Batch: 250816W2, Mfg: Aug 2025, "
+            },
+            {
+              "id": "83bf5cb0-ccd6-4db4-8862-22f9cde4a9c7",
+              "line_number": 1,
+              "account": "2110 Accounts Payable",
+              "debit": 0,
+              "credit": 70598.5,
+              "description": "A/P - E0000220/2526"
+            },
+            {
+              "id": "f5cb517d-1340-49cf-a9f2-80a43268e13b",
+              "line_number": 11,
+              "account": "1130 Inventory",
+              "debit": 982.5,
+              "credit": 0,
+              "description": "Domperidone Maleate BP1"
+            }
+          ]
+        },
+        {
+          "id": "3bb7a82a-5f44-4585-b7a7-1e78bc3e4770",
+          "entry_number": "JE-2511-0002",
+          "entry_date": "2025-11-25",
+          "source_module": "purchase_invoice",
+          "reference_id": "819d782a-8e3f-4edf-bfd6-25c2b351a156",
+          "reference_number": "SSM/251100490",
+          "total_debit": 4684685,
+          "total_credit": 5200000.35,
+          "delta_debit_minus_credit": -515315.35,
+          "max_line_number": 2,
+          "lines": [
+            {
+              "id": "ab938d8c-fbb2-4a75-9122-b7c7914bc256",
+              "line_number": 1,
+              "account": "2110 Accounts Payable",
+              "debit": 0,
+              "credit": 5200000.35,
+              "description": "A/P - SSM/251100490"
+            },
+            {
+              "id": "a6d5eccc-2fb1-43ef-a7bb-078b8318fefe",
+              "line_number": 2,
+              "account": "1203 Air Conditioners",
+              "debit": 4684685,
+              "credit": 0,
+              "description": "AC 1.5 PK MIDEA "
+            }
+          ]
+        },
+        {
+          "id": "d94350f4-37b7-434c-96b0-73b11e06cb9d",
+          "entry_number": "JE-2510-0002",
+          "entry_date": "2025-10-15",
+          "source_module": "purchase_invoice",
+          "reference_id": "ce0f0791-55a3-4217-85ce-edbc11ee3875",
+          "reference_number": "SO/25100560",
+          "total_debit": 4684685,
+          "total_credit": 5200000.35,
+          "delta_debit_minus_credit": -515315.35,
+          "max_line_number": 2,
+          "lines": [
+            {
+              "id": "8b95df1d-7b73-455e-b760-f5044fb808ae",
+              "line_number": 1,
+              "account": "2110 Accounts Payable",
+              "debit": 0,
+              "credit": 5200000.35,
+              "description": "A/P - SO/25100560"
+            },
+            {
+              "id": "0b257bf3-33e7-4465-879c-6c01228c10f4",
+              "line_number": 2,
+              "account": "1203 Air Conditioners",
+              "debit": 4684685,
+              "credit": 0,
+              "description": "AC 1.5 PK MIDEA "
+            }
+          ]
+        }
+      ]
+    },
+    "inventory": {
+      "account_1130_gl": -665822.77,
+      "batch_valuation": 1554947363.56,
+      "variance_gl_minus_batch": -1555613186.33
+    },
+    "physical_stock_targets": [
+      {
+        "batch_id": "0db25472-29a7-432f-a847-938f64aab7b0",
+        "batch_number": "250816w2",
+        "product_id": "3e5fd03d-c2b6-4507-8333-8a1ea8b9decc",
+        "product_name": "Microcrystalline Cellulose (PH - 102)",
+        "product_current_stock": 1449,
+        "import_quantity": 2000,
+        "current_stock": 1449,
+        "delivered": 550,
+        "invoiced": 551,
+        "physical_expected_stock": 1450,
+        "adjustment_quantity": 1,
+        "landed_cost_per_unit": 44009.05,
+        "valuation_impact": 44009.05
+      },
+      {
+        "batch_id": "cb5539e0-4c14-4086-ba30-92cf194d5db2",
+        "batch_number": "4001/1101/25/A-3147",
+        "product_id": "4fd7e5b5-1226-4044-b9bd-e16e1e8a516a",
+        "product_name": "Ibuprofen BP",
+        "product_current_stock": 50,
+        "import_quantity": 1000,
+        "current_stock": 0,
+        "delivered": 1050,
+        "invoiced": 1000,
+        "physical_expected_stock": -50,
+        "adjustment_quantity": -50,
+        "landed_cost_per_unit": 155995.12,
+        "valuation_impact": -7799756
+      }
+    ],
+    "trial_balance_delta_debit_minus_credit": -1029648.2
+  },
+  "plan": {
+    "cogs": [
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "b2ac6308-bfa5-4a07-b534-b25b78b32155",
+          "invoice_number": "SAPJ-26-002",
+          "invoice_date": "2026-01-15",
+          "customer_id": "6dfbae47-f590-456b-bcbd-99e8d85963a1",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 568242957,
+          "posted_cogs": 0,
+          "correction_amount": 568242957,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "c22d70c6-e9fd-4390-82d9-983ae35096ce",
+              "batch_number": "XMEP250178",
+              "product_name": "Cefixime USP",
+              "quantity": 300,
+              "landed_cost_per_unit": 1894143.19,
+              "value": 568242957
+            }
+          ]
+        },
+        "je": {
+          "id": "b3b07872-fcd6-4e3e-956e-436054572805",
+          "entry_number": "HFR-260603-COGS-001",
+          "entry_date": "2026-01-15",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "b2ac6308-bfa5-4a07-b534-b25b78b32155",
+          "reference_number": "SAPJ-26-002",
+          "description": "Historical COGS correction for SAPJ-26-002; additive repair HFR-260603",
+          "total_debit": 568242957,
+          "total_credit": 568242957,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.452Z",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba"
+        },
+        "lines": [
+          {
+            "id": "4ab7f688-a753-4335-8eba-cc8d93f9e7e0",
+            "journal_entry_id": "b3b07872-fcd6-4e3e-956e-436054572805",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-002",
+            "debit": 568242957,
+            "credit": 0,
+            "customer_id": "6dfbae47-f590-456b-bcbd-99e8d85963a1"
+          },
+          {
+            "id": "5bf6bcaf-5ebd-42be-a966-765616b3ff4f",
+            "journal_entry_id": "b3b07872-fcd6-4e3e-956e-436054572805",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-002",
+            "debit": 0,
+            "credit": 568242957,
+            "customer_id": "6dfbae47-f590-456b-bcbd-99e8d85963a1"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "f438f21c-6274-4ac3-b623-b40ee60b3a79",
+          "invoice_number": "SAPJ-26-010",
+          "invoice_date": "2026-04-10",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 489719970,
+          "posted_cogs": 0,
+          "correction_amount": 489719970,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "49fac1bc-54c1-4234-8637-d3c370064302",
+              "batch_number": "4001/1101/25/A-4632",
+              "product_name": "Ibuprofen BP",
+              "quantity": 1000,
+              "landed_cost_per_unit": 163239.99,
+              "value": 163239990
+            },
+            {
+              "batch_id": "82a80a31-b3ce-487d-b3d1-1d696d6bc588",
+              "batch_number": "4001/1101/25/A-4276",
+              "product_name": "Ibuprofen BP",
+              "quantity": 1000,
+              "landed_cost_per_unit": 163239.99,
+              "value": 163239990
+            },
+            {
+              "batch_id": "ebb4813e-9eea-4951-b622-b35489c2e082",
+              "batch_number": "4001/1101/25/A-4277",
+              "product_name": "Ibuprofen BP",
+              "quantity": 1000,
+              "landed_cost_per_unit": 163239.99,
+              "value": 163239990
+            }
+          ]
+        },
+        "je": {
+          "id": "865d8c69-6896-4e39-84d9-38b24779ff86",
+          "entry_number": "HFR-260603-COGS-002",
+          "entry_date": "2026-04-10",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "f438f21c-6274-4ac3-b623-b40ee60b3a79",
+          "reference_number": "SAPJ-26-010",
+          "description": "Historical COGS correction for SAPJ-26-010; additive repair HFR-260603",
+          "total_debit": 489719970,
+          "total_credit": 489719970,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.452Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "eb081a29-21e3-4e47-b6f8-781fadd26157",
+            "journal_entry_id": "865d8c69-6896-4e39-84d9-38b24779ff86",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-010",
+            "debit": 489719970,
+            "credit": 0,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          },
+          {
+            "id": "2231c3f7-a898-42fc-a404-656a95866be7",
+            "journal_entry_id": "865d8c69-6896-4e39-84d9-38b24779ff86",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-010",
+            "debit": 0,
+            "credit": 489719970,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "fa9834dc-3a4d-47d9-953e-7bacd5479bcd",
+          "invoice_number": "SAPJ-26-016",
+          "invoice_date": "2026-05-04",
+          "customer_id": "26f452e7-3afc-4257-bb1f-d0a3c230fb9c",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 378828638,
+          "posted_cogs": 0,
+          "correction_amount": 378828638,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "c22d70c6-e9fd-4390-82d9-983ae35096ce",
+              "batch_number": "XMEP250178",
+              "product_name": "Cefixime USP",
+              "quantity": 200,
+              "landed_cost_per_unit": 1894143.19,
+              "value": 378828638
+            }
+          ]
+        },
+        "je": {
+          "id": "b0be771b-b584-461e-959b-691c11bc0741",
+          "entry_number": "HFR-260603-COGS-003",
+          "entry_date": "2026-05-04",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "fa9834dc-3a4d-47d9-953e-7bacd5479bcd",
+          "reference_number": "SAPJ-26-016",
+          "description": "Historical COGS correction for SAPJ-26-016; additive repair HFR-260603",
+          "total_debit": 378828638,
+          "total_credit": 378828638,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.452Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "26d5fcaa-8b64-4874-a008-9748ff53b49c",
+            "journal_entry_id": "b0be771b-b584-461e-959b-691c11bc0741",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-016",
+            "debit": 378828638,
+            "credit": 0,
+            "customer_id": "26f452e7-3afc-4257-bb1f-d0a3c230fb9c"
+          },
+          {
+            "id": "baddbfc4-4d0d-4514-9723-2cacc64b1134",
+            "journal_entry_id": "b0be771b-b584-461e-959b-691c11bc0741",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-016",
+            "debit": 0,
+            "credit": 378828638,
+            "customer_id": "26f452e7-3afc-4257-bb1f-d0a3c230fb9c"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "5d602dbd-0b0d-4c73-ad43-2fc979903032",
+          "invoice_number": "SAPJ-005",
+          "invoice_date": "2025-11-29",
+          "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684",
+          "created_by": null,
+          "expected_cogs": 311990240,
+          "posted_cogs": 0,
+          "correction_amount": 311990240,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "cb7b0b87-79be-40e5-844d-b2bcfed2727e",
+              "batch_number": "4001/1101/25/A-3145",
+              "product_name": "Ibuprofen BP",
+              "quantity": 600,
+              "landed_cost_per_unit": 155995.12,
+              "value": 93597072
+            },
+            {
+              "batch_id": "c20fe01a-fbe3-43ba-93cc-0a2175fee19a",
+              "batch_number": "4001/1101/25/A-3146",
+              "product_name": "Ibuprofen BP",
+              "quantity": 350,
+              "landed_cost_per_unit": 155995.12,
+              "value": 54598292
+            },
+            {
+              "batch_id": "cb5539e0-4c14-4086-ba30-92cf194d5db2",
+              "batch_number": "4001/1101/25/A-3147",
+              "product_name": "Ibuprofen BP",
+              "quantity": 400,
+              "landed_cost_per_unit": 155995.12,
+              "value": 62398048
+            },
+            {
+              "batch_id": "cb7b0b87-79be-40e5-844d-b2bcfed2727e",
+              "batch_number": "4001/1101/25/A-3145",
+              "product_name": "Ibuprofen BP",
+              "quantity": 150,
+              "landed_cost_per_unit": 155995.12,
+              "value": 23399268
+            },
+            {
+              "batch_id": "c20fe01a-fbe3-43ba-93cc-0a2175fee19a",
+              "batch_number": "4001/1101/25/A-3146",
+              "product_name": "Ibuprofen BP",
+              "quantity": 500,
+              "landed_cost_per_unit": 155995.12,
+              "value": 77997560
+            }
+          ]
+        },
+        "je": {
+          "id": "040ef65b-4d4e-4e41-9af7-63ce80040ebb",
+          "entry_number": "HFR-260603-COGS-004",
+          "entry_date": "2025-11-29",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "5d602dbd-0b0d-4c73-ad43-2fc979903032",
+          "reference_number": "SAPJ-005",
+          "description": "Historical COGS correction for SAPJ-005; additive repair HFR-260603",
+          "total_debit": 311990240,
+          "total_credit": 311990240,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.452Z",
+          "created_by": null
+        },
+        "lines": [
+          {
+            "id": "29dd30b0-5933-40f7-baee-3b0e9c1da8b9",
+            "journal_entry_id": "040ef65b-4d4e-4e41-9af7-63ce80040ebb",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-005",
+            "debit": 311990240,
+            "credit": 0,
+            "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684"
+          },
+          {
+            "id": "b5b21b6a-cb7a-40fb-8b48-4d87ee377fd3",
+            "journal_entry_id": "040ef65b-4d4e-4e41-9af7-63ce80040ebb",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-005",
+            "debit": 0,
+            "credit": 311990240,
+            "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "182602a2-9e2f-45cf-a69c-d77d59f46054",
+          "invoice_number": "SAPJ-26-005",
+          "invoice_date": "2026-02-16",
+          "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 192088750,
+          "posted_cogs": 0,
+          "correction_amount": 192088750,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "07d37743-ed11-4baa-bf79-ae59a5ac336c",
+              "batch_number": "M1CFX10003625N",
+              "product_name": "Cefixime Trihydrate Powder Micronized",
+              "quantity": 100,
+              "landed_cost_per_unit": 1920887.5,
+              "value": 192088750
+            }
+          ]
+        },
+        "je": {
+          "id": "acf6c7df-7b7c-4410-9763-10e0e246c1b3",
+          "entry_number": "HFR-260603-COGS-005",
+          "entry_date": "2026-02-16",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "182602a2-9e2f-45cf-a69c-d77d59f46054",
+          "reference_number": "SAPJ-26-005",
+          "description": "Historical COGS correction for SAPJ-26-005; additive repair HFR-260603",
+          "total_debit": 192088750,
+          "total_credit": 192088750,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.452Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "4f21cdeb-87fa-4f3a-b7f2-e573863559ea",
+            "journal_entry_id": "acf6c7df-7b7c-4410-9763-10e0e246c1b3",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-005",
+            "debit": 192088750,
+            "credit": 0,
+            "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff"
+          },
+          {
+            "id": "4007c8c6-e6c1-4d57-acf4-e218b0bf0cd6",
+            "journal_entry_id": "acf6c7df-7b7c-4410-9763-10e0e246c1b3",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-005",
+            "debit": 0,
+            "credit": 192088750,
+            "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "300e00ac-8641-4893-8d35-93972eff04b2",
+          "invoice_number": "SAPJ-26-004",
+          "invoice_date": "2026-02-16",
+          "customer_id": "11f7f041-ccc8-4049-9f13-368783ce2f1e",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 165261630,
+          "posted_cogs": 0,
+          "correction_amount": 165261630,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "576eeb3d-3ebd-4477-ba2e-b2ca82770912",
+              "batch_number": "4002/1101/25/A-0512B",
+              "product_name": "Ibuprofen USP",
+              "quantity": 1000,
+              "landed_cost_per_unit": 165261.63,
+              "value": 165261630
+            }
+          ]
+        },
+        "je": {
+          "id": "4bdccab1-2e17-4fd9-8aa3-44a56369037f",
+          "entry_number": "HFR-260603-COGS-006",
+          "entry_date": "2026-02-16",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "300e00ac-8641-4893-8d35-93972eff04b2",
+          "reference_number": "SAPJ-26-004",
+          "description": "Historical COGS correction for SAPJ-26-004; additive repair HFR-260603",
+          "total_debit": 165261630,
+          "total_credit": 165261630,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.452Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "08a3721b-4ac9-46a7-9dc8-3644b4ed5366",
+            "journal_entry_id": "4bdccab1-2e17-4fd9-8aa3-44a56369037f",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-004",
+            "debit": 165261630,
+            "credit": 0,
+            "customer_id": "11f7f041-ccc8-4049-9f13-368783ce2f1e"
+          },
+          {
+            "id": "80295b5a-2b00-4b99-8abd-2b32dee27c08",
+            "journal_entry_id": "4bdccab1-2e17-4fd9-8aa3-44a56369037f",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-004",
+            "debit": 0,
+            "credit": 165261630,
+            "customer_id": "11f7f041-ccc8-4049-9f13-368783ce2f1e"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "4030d13f-d41a-4201-8257-a93604641598",
+          "invoice_number": "SAPJ-010",
+          "invoice_date": "2025-12-24",
+          "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 162536031,
+          "posted_cogs": 0,
+          "correction_amount": 162536031,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "91dbb295-5284-42e6-a7df-bb605ef59e31",
+              "batch_number": "KET / 125100608",
+              "product_name": "Ketoconazole USP",
+              "quantity": 150,
+              "landed_cost_per_unit": 1083573.54,
+              "value": 162536031
+            }
+          ]
+        },
+        "je": {
+          "id": "63a644d8-de87-4acc-8fa6-958c55965986",
+          "entry_number": "HFR-260603-COGS-007",
+          "entry_date": "2025-12-24",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "4030d13f-d41a-4201-8257-a93604641598",
+          "reference_number": "SAPJ-010",
+          "description": "Historical COGS correction for SAPJ-010; additive repair HFR-260603",
+          "total_debit": 162536031,
+          "total_credit": 162536031,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.452Z",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba"
+        },
+        "lines": [
+          {
+            "id": "87764dae-af1c-46c1-8cb8-ba4839666297",
+            "journal_entry_id": "63a644d8-de87-4acc-8fa6-958c55965986",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-010",
+            "debit": 162536031,
+            "credit": 0,
+            "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff"
+          },
+          {
+            "id": "dbc28777-e459-4e62-a2db-cdf169c9178c",
+            "journal_entry_id": "63a644d8-de87-4acc-8fa6-958c55965986",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-010",
+            "debit": 0,
+            "credit": 162536031,
+            "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "03162b99-b06b-475b-b00c-e14cb9dd6123",
+          "invoice_number": "SAPJ-26-013",
+          "invoice_date": "2026-04-13",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 104380524,
+          "posted_cogs": 0,
+          "correction_amount": 104380524,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "fbe27e70-5828-4a2d-a1d7-a8b5394328eb",
+              "batch_number": "B108/2026",
+              "product_name": "Corn Starch BP",
+              "quantity": 2550,
+              "landed_cost_per_unit": 9502.72,
+              "value": 24231936
+            },
+            {
+              "batch_id": "30293586-9382-4eeb-8c4d-67a84a70325f",
+              "batch_number": "B109/2026",
+              "product_name": "Corn Starch BP",
+              "quantity": 8450,
+              "landed_cost_per_unit": 9485.04,
+              "value": 80148588
+            }
+          ]
+        },
+        "je": {
+          "id": "0ff4374f-fdc5-417c-ab05-38be78c85680",
+          "entry_number": "HFR-260603-COGS-008",
+          "entry_date": "2026-04-13",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "03162b99-b06b-475b-b00c-e14cb9dd6123",
+          "reference_number": "SAPJ-26-013",
+          "description": "Historical COGS correction for SAPJ-26-013; additive repair HFR-260603",
+          "total_debit": 104380524,
+          "total_credit": 104380524,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.452Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "b77ae169-549c-44b1-8ec5-290af2fec354",
+            "journal_entry_id": "0ff4374f-fdc5-417c-ab05-38be78c85680",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-013",
+            "debit": 104380524,
+            "credit": 0,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          },
+          {
+            "id": "f58efe4d-47be-4505-94ce-8e3f418b98e8",
+            "journal_entry_id": "0ff4374f-fdc5-417c-ab05-38be78c85680",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-013",
+            "debit": 0,
+            "credit": 104380524,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "12aef5ac-e4c3-446e-b92e-baff1d841f1d",
+          "invoice_number": "SAPJ-26-001",
+          "invoice_date": "2026-01-15",
+          "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 70223442,
+          "posted_cogs": 0,
+          "correction_amount": 70223442,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "c1983658-809f-4448-ad77-4e24b8835f87",
+              "batch_number": "PRAH0640725",
+              "product_name": "Piroxicam USP",
+              "quantity": 100,
+              "landed_cost_per_unit": 702234.42,
+              "value": 70223442
+            }
+          ]
+        },
+        "je": {
+          "id": "49b534b6-dc2c-4b56-94fe-57fcab4683b9",
+          "entry_number": "HFR-260603-COGS-009",
+          "entry_date": "2026-01-15",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "12aef5ac-e4c3-446e-b92e-baff1d841f1d",
+          "reference_number": "SAPJ-26-001",
+          "description": "Historical COGS correction for SAPJ-26-001; additive repair HFR-260603",
+          "total_debit": 70223442,
+          "total_credit": 70223442,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.452Z",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba"
+        },
+        "lines": [
+          {
+            "id": "496580bf-220a-431a-863e-be134ae20925",
+            "journal_entry_id": "49b534b6-dc2c-4b56-94fe-57fcab4683b9",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-001",
+            "debit": 70223442,
+            "credit": 0,
+            "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684"
+          },
+          {
+            "id": "c04ee0cb-0716-450f-9829-4f58eb3a4d9f",
+            "journal_entry_id": "49b534b6-dc2c-4b56-94fe-57fcab4683b9",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-001",
+            "debit": 0,
+            "credit": 70223442,
+            "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "fbb11a73-7935-469b-991b-32daf13dae4e",
+          "invoice_number": "SAPJ-009",
+          "invoice_date": "2025-12-15",
+          "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 70197804,
+          "posted_cogs": 0,
+          "correction_amount": 70197804,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "c20fe01a-fbe3-43ba-93cc-0a2175fee19a",
+              "batch_number": "4001/1101/25/A-3146",
+              "product_name": "Ibuprofen BP",
+              "quantity": 50,
+              "landed_cost_per_unit": 155995.12,
+              "value": 7799756
+            },
+            {
+              "batch_id": "cb5539e0-4c14-4086-ba30-92cf194d5db2",
+              "batch_number": "4001/1101/25/A-3147",
+              "product_name": "Ibuprofen BP",
+              "quantity": 400,
+              "landed_cost_per_unit": 155995.12,
+              "value": 62398048
+            }
+          ]
+        },
+        "je": {
+          "id": "5e68d6f0-da7b-4eb4-8311-4bb30e2dedb3",
+          "entry_number": "HFR-260603-COGS-010",
+          "entry_date": "2025-12-15",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "fbb11a73-7935-469b-991b-32daf13dae4e",
+          "reference_number": "SAPJ-009",
+          "description": "Historical COGS correction for SAPJ-009; additive repair HFR-260603",
+          "total_debit": 70197804,
+          "total_credit": 70197804,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba"
+        },
+        "lines": [
+          {
+            "id": "8c8255d1-2a45-4e4f-b707-dfbcec6bae81",
+            "journal_entry_id": "5e68d6f0-da7b-4eb4-8311-4bb30e2dedb3",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-009",
+            "debit": 70197804,
+            "credit": 0,
+            "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684"
+          },
+          {
+            "id": "c8756526-fde0-422d-96a8-fd6185889146",
+            "journal_entry_id": "5e68d6f0-da7b-4eb4-8311-4bb30e2dedb3",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-009",
+            "debit": 0,
+            "credit": 70197804,
+            "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "662a7c07-df0a-463a-ba0c-2cff6381907f",
+          "invoice_number": "SAPJ-26-017",
+          "invoice_date": "2026-05-05",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 70197804,
+          "posted_cogs": 0,
+          "correction_amount": 70197804,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "cb7b0b87-79be-40e5-844d-b2bcfed2727e",
+              "batch_number": "4001/1101/25/A-3145",
+              "product_name": "Ibuprofen BP",
+              "quantity": 250,
+              "landed_cost_per_unit": 155995.12,
+              "value": 38998780
+            },
+            {
+              "batch_id": "c20fe01a-fbe3-43ba-93cc-0a2175fee19a",
+              "batch_number": "4001/1101/25/A-3146",
+              "product_name": "Ibuprofen BP",
+              "quantity": 50,
+              "landed_cost_per_unit": 155995.12,
+              "value": 7799756
+            },
+            {
+              "batch_id": "cb5539e0-4c14-4086-ba30-92cf194d5db2",
+              "batch_number": "4001/1101/25/A-3147",
+              "product_name": "Ibuprofen BP",
+              "quantity": 150,
+              "landed_cost_per_unit": 155995.12,
+              "value": 23399268
+            }
+          ]
+        },
+        "je": {
+          "id": "efa6c648-ded5-44c9-94be-b78759c6f0fe",
+          "entry_number": "HFR-260603-COGS-011",
+          "entry_date": "2026-05-05",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "662a7c07-df0a-463a-ba0c-2cff6381907f",
+          "reference_number": "SAPJ-26-017",
+          "description": "Historical COGS correction for SAPJ-26-017; additive repair HFR-260603",
+          "total_debit": 70197804,
+          "total_credit": 70197804,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "9d13d53c-ec36-45c5-9dbe-45a7438b9a5c",
+            "journal_entry_id": "efa6c648-ded5-44c9-94be-b78759c6f0fe",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-017",
+            "debit": 70197804,
+            "credit": 0,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          },
+          {
+            "id": "6772591d-46a0-46a9-aaa6-6d17d931dae6",
+            "journal_entry_id": "efa6c648-ded5-44c9-94be-b78759c6f0fe",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-017",
+            "debit": 0,
+            "credit": 70197804,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "22c3799b-59dd-4ddb-9085-b4a68e6dbedc",
+          "invoice_number": "SAPJ-26-018",
+          "invoice_date": "2026-05-07",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 66509316,
+          "posted_cogs": 0,
+          "correction_amount": 66509316,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "fbe27e70-5828-4a2d-a1d7-a8b5394328eb",
+              "batch_number": "B108/2026",
+              "product_name": "Corn Starch BP",
+              "quantity": 6450,
+              "landed_cost_per_unit": 9502.72,
+              "value": 61292544
+            },
+            {
+              "batch_id": "30293586-9382-4eeb-8c4d-67a84a70325f",
+              "batch_number": "B109/2026",
+              "product_name": "Corn Starch BP",
+              "quantity": 550,
+              "landed_cost_per_unit": 9485.04,
+              "value": 5216772
+            }
+          ]
+        },
+        "je": {
+          "id": "41676a4a-4265-42ae-8157-b52b338ef306",
+          "entry_number": "HFR-260603-COGS-012",
+          "entry_date": "2026-05-07",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "22c3799b-59dd-4ddb-9085-b4a68e6dbedc",
+          "reference_number": "SAPJ-26-018",
+          "description": "Historical COGS correction for SAPJ-26-018; additive repair HFR-260603",
+          "total_debit": 66509316,
+          "total_credit": 66509316,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "0caadd54-778a-44a3-90bd-834593547eb1",
+            "journal_entry_id": "41676a4a-4265-42ae-8157-b52b338ef306",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-018",
+            "debit": 66509316,
+            "credit": 0,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          },
+          {
+            "id": "386375bf-c7e7-4072-8b18-e65075ebee74",
+            "journal_entry_id": "41676a4a-4265-42ae-8157-b52b338ef306",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-018",
+            "debit": 0,
+            "credit": 66509316,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "850ff16e-7cf3-447f-bf3e-99ed8135eba3",
+          "invoice_number": "SAPJ-26-019",
+          "invoice_date": "2026-05-07",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 49401967.5,
+          "posted_cogs": 0,
+          "correction_amount": 49401967.5,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "b9a3e457-4faa-4a89-882c-018071e2460b",
+              "batch_number": "17721025",
+              "product_name": "Sulfamethoxazole USP",
+              "quantity": 250,
+              "landed_cost_per_unit": 197607.87,
+              "value": 49401967.5
+            }
+          ]
+        },
+        "je": {
+          "id": "401172e7-17c5-49b6-badd-178d78b05bb9",
+          "entry_number": "HFR-260603-COGS-013",
+          "entry_date": "2026-05-07",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "850ff16e-7cf3-447f-bf3e-99ed8135eba3",
+          "reference_number": "SAPJ-26-019",
+          "description": "Historical COGS correction for SAPJ-26-019; additive repair HFR-260603",
+          "total_debit": 49401967.5,
+          "total_credit": 49401967.5,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "444bd6b5-9ec4-4b5d-a7c3-39aec4cab77c",
+            "journal_entry_id": "401172e7-17c5-49b6-badd-178d78b05bb9",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-019",
+            "debit": 49401967.5,
+            "credit": 0,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          },
+          {
+            "id": "29ff1dd2-e6bb-4c6b-9d58-08ba79bfa941",
+            "journal_entry_id": "401172e7-17c5-49b6-badd-178d78b05bb9",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-019",
+            "debit": 0,
+            "credit": 49401967.5,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "0709e1a2-bc80-4b64-a93d-52776293f44a",
+          "invoice_number": "SAPJ-26-003",
+          "invoice_date": "2026-02-09",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "a82db049-ed45-4861-a115-a20155129f3a",
+          "expected_cogs": 39326127.3,
+          "posted_cogs": 0,
+          "correction_amount": 39326127.3,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "f767785c-1d74-4b03-b7be-1e6cd6b8282f",
+              "batch_number": "DX/L/25/0048",
+              "product_name": "Dextromethorphan Hydrobromide USP",
+              "quantity": 30,
+              "landed_cost_per_unit": 1310870.91,
+              "value": 39326127.3
+            }
+          ]
+        },
+        "je": {
+          "id": "60f67a78-42b1-448f-a43b-aab323004ceb",
+          "entry_number": "HFR-260603-COGS-014",
+          "entry_date": "2026-02-09",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "0709e1a2-bc80-4b64-a93d-52776293f44a",
+          "reference_number": "SAPJ-26-003",
+          "description": "Historical COGS correction for SAPJ-26-003; additive repair HFR-260603",
+          "total_debit": 39326127.3,
+          "total_credit": 39326127.3,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "a82db049-ed45-4861-a115-a20155129f3a"
+        },
+        "lines": [
+          {
+            "id": "6c86ab0e-8623-4e05-91f4-0c6a4f4497d0",
+            "journal_entry_id": "60f67a78-42b1-448f-a43b-aab323004ceb",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-003",
+            "debit": 39326127.3,
+            "credit": 0,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          },
+          {
+            "id": "e6546f23-5485-4dbe-9bc2-67b9c80cdb53",
+            "journal_entry_id": "60f67a78-42b1-448f-a43b-aab323004ceb",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-003",
+            "debit": 0,
+            "credit": 39326127.3,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "1c99831b-5364-4be9-99c4-59e266ec79ee",
+          "invoice_number": "SAPJ-26-014",
+          "invoice_date": "2026-04-14",
+          "customer_id": "33bab483-e4b0-4a3a-a0cc-e5309c170ce1",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 39326127.3,
+          "posted_cogs": 0,
+          "correction_amount": 39326127.3,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "f767785c-1d74-4b03-b7be-1e6cd6b8282f",
+              "batch_number": "DX/L/25/0048",
+              "product_name": "Dextromethorphan Hydrobromide USP",
+              "quantity": 30,
+              "landed_cost_per_unit": 1310870.91,
+              "value": 39326127.3
+            }
+          ]
+        },
+        "je": {
+          "id": "ab00d4be-914c-4f67-8181-c24481f3f5f6",
+          "entry_number": "HFR-260603-COGS-015",
+          "entry_date": "2026-04-14",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "1c99831b-5364-4be9-99c4-59e266ec79ee",
+          "reference_number": "SAPJ-26-014",
+          "description": "Historical COGS correction for SAPJ-26-014; additive repair HFR-260603",
+          "total_debit": 39326127.3,
+          "total_credit": 39326127.3,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "1c17630e-e9a0-45e2-b6e4-6c17b09a12ac",
+            "journal_entry_id": "ab00d4be-914c-4f67-8181-c24481f3f5f6",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-014",
+            "debit": 39326127.3,
+            "credit": 0,
+            "customer_id": "33bab483-e4b0-4a3a-a0cc-e5309c170ce1"
+          },
+          {
+            "id": "634bb098-2e4a-4b08-baab-5d53b9713c85",
+            "journal_entry_id": "ab00d4be-914c-4f67-8181-c24481f3f5f6",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-014",
+            "debit": 0,
+            "credit": 39326127.3,
+            "customer_id": "33bab483-e4b0-4a3a-a0cc-e5309c170ce1"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "246f8684-a51c-4f09-a5e0-dac7aab39ae6",
+          "invoice_number": "SAPJ-008",
+          "invoice_date": "2025-12-16",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 33794921.25,
+          "posted_cogs": 8677.98,
+          "correction_amount": 33786243.27,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "3f33b652-59ec-4fbb-91a5-0cc01f2a0266",
+              "batch_number": "1699/2025",
+              "product_name": "Corn Starch BP",
+              "quantity": 2775,
+              "landed_cost_per_unit": 12178.35,
+              "value": 33794921.25
+            }
+          ]
+        },
+        "je": {
+          "id": "c96c783b-37a7-4923-a499-0c41383853f3",
+          "entry_number": "HFR-260603-COGS-016",
+          "entry_date": "2025-12-16",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "246f8684-a51c-4f09-a5e0-dac7aab39ae6",
+          "reference_number": "SAPJ-008",
+          "description": "Historical COGS correction for SAPJ-008; additive repair HFR-260603",
+          "total_debit": 33786243.27,
+          "total_credit": 33786243.27,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba"
+        },
+        "lines": [
+          {
+            "id": "0ac766aa-8450-4acd-ad36-d4bbc0ad2f96",
+            "journal_entry_id": "c96c783b-37a7-4923-a499-0c41383853f3",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-008",
+            "debit": 33786243.27,
+            "credit": 0,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          },
+          {
+            "id": "2921ad06-2abf-4bd1-9f99-4637915603f7",
+            "journal_entry_id": "c96c783b-37a7-4923-a499-0c41383853f3",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-008",
+            "debit": 0,
+            "credit": 33786243.27,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "0752ad11-554b-4893-b5a6-d671ed60e900",
+          "invoice_number": "SAPJ-26-011",
+          "invoice_date": "2026-04-10",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 31823611,
+          "posted_cogs": 0,
+          "correction_amount": 31823611,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "5404fca3-40ac-4525-af04-e3a1a73de372",
+              "batch_number": "BDM/2510066",
+              "product_name": "Domperidone Maleate BP",
+              "quantity": 50,
+              "landed_cost_per_unit": 636472.22,
+              "value": 31823611
+            }
+          ]
+        },
+        "je": {
+          "id": "43c268b8-ab59-4054-b06c-d23608b966a5",
+          "entry_number": "HFR-260603-COGS-017",
+          "entry_date": "2026-04-10",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "0752ad11-554b-4893-b5a6-d671ed60e900",
+          "reference_number": "SAPJ-26-011",
+          "description": "Historical COGS correction for SAPJ-26-011; additive repair HFR-260603",
+          "total_debit": 31823611,
+          "total_credit": 31823611,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "2f8bd3c1-1567-4e4e-9b63-953d637ed292",
+            "journal_entry_id": "43c268b8-ab59-4054-b06c-d23608b966a5",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-011",
+            "debit": 31823611,
+            "credit": 0,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          },
+          {
+            "id": "1989e8b0-267b-4fee-b817-ac0900d59cef",
+            "journal_entry_id": "43c268b8-ab59-4054-b06c-d23608b966a5",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-011",
+            "debit": 0,
+            "credit": 31823611,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "10d6aa18-82bb-4cb5-825b-7e29629aa148",
+          "invoice_number": "SAPJ-002",
+          "invoice_date": "2025-12-02",
+          "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 30095880,
+          "posted_cogs": 17267.25,
+          "correction_amount": 30078612.75,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "69c774d1-f347-4347-9112-5277f8729598",
+              "batch_number": "NHP25062",
+              "product_name": "Ammonium Chloride USP ",
+              "quantity": 1500,
+              "landed_cost_per_unit": 20063.92,
+              "value": 30095880
+            }
+          ]
+        },
+        "je": {
+          "id": "26887c6a-27a8-47ea-a381-c967775c8d96",
+          "entry_number": "HFR-260603-COGS-018",
+          "entry_date": "2025-12-02",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "10d6aa18-82bb-4cb5-825b-7e29629aa148",
+          "reference_number": "SAPJ-002",
+          "description": "Historical COGS correction for SAPJ-002; additive repair HFR-260603",
+          "total_debit": 30078612.75,
+          "total_credit": 30078612.75,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba"
+        },
+        "lines": [
+          {
+            "id": "44f2f665-eee9-4f9f-8b81-0c0948d07ea2",
+            "journal_entry_id": "26887c6a-27a8-47ea-a381-c967775c8d96",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-002",
+            "debit": 30078612.75,
+            "credit": 0,
+            "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff"
+          },
+          {
+            "id": "b6224e6c-ca8d-495d-9c6e-3d449bc74407",
+            "journal_entry_id": "26887c6a-27a8-47ea-a381-c967775c8d96",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-002",
+            "debit": 0,
+            "credit": 30078612.75,
+            "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "6ee5ec11-ee20-46ae-b24c-16a0ffe279e6",
+          "invoice_number": "SAPJ-26-006",
+          "invoice_date": "2026-02-26",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 26217418.2,
+          "posted_cogs": 0,
+          "correction_amount": 26217418.2,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "f767785c-1d74-4b03-b7be-1e6cd6b8282f",
+              "batch_number": "DX/L/25/0048",
+              "product_name": "Dextromethorphan Hydrobromide USP",
+              "quantity": 20,
+              "landed_cost_per_unit": 1310870.91,
+              "value": 26217418.2
+            }
+          ]
+        },
+        "je": {
+          "id": "74745077-4a4a-4445-8ec1-7769839131b5",
+          "entry_number": "HFR-260603-COGS-019",
+          "entry_date": "2026-02-26",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "6ee5ec11-ee20-46ae-b24c-16a0ffe279e6",
+          "reference_number": "SAPJ-26-006",
+          "description": "Historical COGS correction for SAPJ-26-006; additive repair HFR-260603",
+          "total_debit": 26217418.2,
+          "total_credit": 26217418.2,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "d4608406-7f0b-4f84-89e8-be23704e38c3",
+            "journal_entry_id": "74745077-4a4a-4445-8ec1-7769839131b5",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-006",
+            "debit": 26217418.2,
+            "credit": 0,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          },
+          {
+            "id": "5c7aa777-5700-41cb-8b3d-7c9748df238f",
+            "journal_entry_id": "74745077-4a4a-4445-8ec1-7769839131b5",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-006",
+            "debit": 0,
+            "credit": 26217418.2,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "4c9ffb98-1e47-4377-8eb6-ec2abdddbb7b",
+          "invoice_number": "SAPJ-003",
+          "invoice_date": "2025-12-02",
+          "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 23473241,
+          "posted_cogs": 231843,
+          "correction_amount": 23241398,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "661ffc10-381b-45fc-8bb6-0482714b8789",
+              "batch_number": "LHCP0350525",
+              "product_name": "Lidocaine HCL USP",
+              "quantity": 100,
+              "landed_cost_per_unit": 234732.41,
+              "value": 23473241
+            }
+          ]
+        },
+        "je": {
+          "id": "c8a09161-c214-4f5e-8576-b4bb7821b2d6",
+          "entry_number": "HFR-260603-COGS-020",
+          "entry_date": "2025-12-02",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "4c9ffb98-1e47-4377-8eb6-ec2abdddbb7b",
+          "reference_number": "SAPJ-003",
+          "description": "Historical COGS correction for SAPJ-003; additive repair HFR-260603",
+          "total_debit": 23241398,
+          "total_credit": 23241398,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba"
+        },
+        "lines": [
+          {
+            "id": "697a4607-aba1-4c9d-8eb9-ede38735a502",
+            "journal_entry_id": "c8a09161-c214-4f5e-8576-b4bb7821b2d6",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-003",
+            "debit": 23241398,
+            "credit": 0,
+            "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff"
+          },
+          {
+            "id": "146ebd8b-0f51-47ba-9e18-1bb3af546aba",
+            "journal_entry_id": "c8a09161-c214-4f5e-8576-b4bb7821b2d6",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-003",
+            "debit": 0,
+            "credit": 23241398,
+            "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "07b8674d-b950-4ca7-b059-089b9626a60b",
+          "invoice_number": "SAPJ-26-021",
+          "invoice_date": "2026-06-02",
+          "customer_id": "b8f9dc5e-2cdf-4527-8960-186bb2a30913",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 22004525,
+          "posted_cogs": 0,
+          "correction_amount": 22004525,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "0db25472-29a7-432f-a847-938f64aab7b0",
+              "batch_number": "250816w2",
+              "product_name": "Microcrystalline Cellulose (PH - 102)",
+              "quantity": 500,
+              "landed_cost_per_unit": 44009.05,
+              "value": 22004525
+            }
+          ]
+        },
+        "je": {
+          "id": "4754a66b-fa6c-43fb-93d3-10fae8d601fb",
+          "entry_number": "HFR-260603-COGS-021",
+          "entry_date": "2026-06-02",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "07b8674d-b950-4ca7-b059-089b9626a60b",
+          "reference_number": "SAPJ-26-021",
+          "description": "Historical COGS correction for SAPJ-26-021; additive repair HFR-260603",
+          "total_debit": 22004525,
+          "total_credit": 22004525,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "67b75a19-92b7-4540-b8e9-6d0d134b35a7",
+            "journal_entry_id": "4754a66b-fa6c-43fb-93d3-10fae8d601fb",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-021",
+            "debit": 22004525,
+            "credit": 0,
+            "customer_id": "b8f9dc5e-2cdf-4527-8960-186bb2a30913"
+          },
+          {
+            "id": "3c14cf8d-5982-42a4-b6df-69462f027f3d",
+            "journal_entry_id": "4754a66b-fa6c-43fb-93d3-10fae8d601fb",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-021",
+            "debit": 0,
+            "credit": 22004525,
+            "customer_id": "b8f9dc5e-2cdf-4527-8960-186bb2a30913"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "2cea1d8d-55b8-4126-9adb-fbae7d9a357b",
+          "invoice_number": "SAPJ-26-007",
+          "invoice_date": "2026-02-26",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 17772655,
+          "posted_cogs": 0,
+          "correction_amount": 17772655,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "6e0aa6a6-9f02-4fcd-a65e-b9eedcfd3d92",
+              "batch_number": "DFK/125090136",
+              "product_name": "Diclofenac Potassium",
+              "quantity": 125,
+              "landed_cost_per_unit": 142181.24,
+              "value": 17772655
+            }
+          ]
+        },
+        "je": {
+          "id": "8b809b8c-e0fc-42fa-9a2e-533aa2d443f8",
+          "entry_number": "HFR-260603-COGS-022",
+          "entry_date": "2026-02-26",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "2cea1d8d-55b8-4126-9adb-fbae7d9a357b",
+          "reference_number": "SAPJ-26-007",
+          "description": "Historical COGS correction for SAPJ-26-007; additive repair HFR-260603",
+          "total_debit": 17772655,
+          "total_credit": 17772655,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "b52a5b83-bb9c-418e-ab56-20aac0cfee8a",
+            "journal_entry_id": "8b809b8c-e0fc-42fa-9a2e-533aa2d443f8",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-007",
+            "debit": 17772655,
+            "credit": 0,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          },
+          {
+            "id": "6906fd99-95f1-488a-9315-e2af20474a4c",
+            "journal_entry_id": "8b809b8c-e0fc-42fa-9a2e-533aa2d443f8",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-007",
+            "debit": 0,
+            "credit": 17772655,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "026cf3ec-62ef-4e59-866a-0f362072830b",
+          "invoice_number": "SAPJ-001",
+          "invoice_date": "2025-12-02",
+          "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 16143616.75,
+          "posted_cogs": 642948,
+          "correction_amount": 15500668.75,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "58797b11-ef96-474e-afc4-b73d5dfcce13",
+              "batch_number": "BDM/2508060",
+              "product_name": "Domperidone Maleate BP",
+              "quantity": 25,
+              "landed_cost_per_unit": 645744.67,
+              "value": 16143616.75
+            }
+          ]
+        },
+        "je": {
+          "id": "d27ce89c-d195-4a25-807d-762cd359bab8",
+          "entry_number": "HFR-260603-COGS-023",
+          "entry_date": "2025-12-02",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "026cf3ec-62ef-4e59-866a-0f362072830b",
+          "reference_number": "SAPJ-001",
+          "description": "Historical COGS correction for SAPJ-001; additive repair HFR-260603",
+          "total_debit": 15500668.75,
+          "total_credit": 15500668.75,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba"
+        },
+        "lines": [
+          {
+            "id": "cc6ce970-bbc4-45e8-a842-747280b9e7a7",
+            "journal_entry_id": "d27ce89c-d195-4a25-807d-762cd359bab8",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-001",
+            "debit": 15500668.75,
+            "credit": 0,
+            "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff"
+          },
+          {
+            "id": "83a9d7dc-3cfb-4174-99a1-2c555037b61a",
+            "journal_entry_id": "d27ce89c-d195-4a25-807d-762cd359bab8",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-001",
+            "debit": 0,
+            "credit": 15500668.75,
+            "customer_id": "a76ba961-75f3-40d6-b87a-594b451918ff"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "df6059f9-365b-48eb-b3d6-273f4a8b297d",
+          "invoice_number": "SAPJ-011",
+          "invoice_date": "2025-12-24",
+          "customer_id": "2adab0d8-20cf-4392-9e66-e3c0227d2826",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 15402660,
+          "posted_cogs": 0,
+          "correction_amount": 15402660,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "7fb3efd0-bdff-4da3-a7f5-0e3aa24fcbe6",
+              "batch_number": "SCPL/MF/014/2025",
+              "product_name": "Mometasone Furoate",
+              "quantity": 250,
+              "landed_cost_per_unit": 61610.64,
+              "value": 15402660
+            }
+          ]
+        },
+        "je": {
+          "id": "21c8bd8e-e432-47f4-9686-89bb3cefbca1",
+          "entry_number": "HFR-260603-COGS-024",
+          "entry_date": "2025-12-24",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "df6059f9-365b-48eb-b3d6-273f4a8b297d",
+          "reference_number": "SAPJ-011",
+          "description": "Historical COGS correction for SAPJ-011; additive repair HFR-260603",
+          "total_debit": 15402660,
+          "total_credit": 15402660,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba"
+        },
+        "lines": [
+          {
+            "id": "14666349-0f55-4ff9-9167-9a7f7449b449",
+            "journal_entry_id": "21c8bd8e-e432-47f4-9686-89bb3cefbca1",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-011",
+            "debit": 15402660,
+            "credit": 0,
+            "customer_id": "2adab0d8-20cf-4392-9e66-e3c0227d2826"
+          },
+          {
+            "id": "3eb18b39-d601-41ff-89f7-9b3ebe74082e",
+            "journal_entry_id": "21c8bd8e-e432-47f4-9686-89bb3cefbca1",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-011",
+            "debit": 0,
+            "credit": 15402660,
+            "customer_id": "2adab0d8-20cf-4392-9e66-e3c0227d2826"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "032ed31b-b08e-4061-9801-1a6cb4f6e07b",
+          "invoice_number": "SAPJ-26-012",
+          "invoice_date": "2026-04-13",
+          "customer_id": "ac817bd9-8250-4a98-ae6c-683a2381afb2",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 9502720,
+          "posted_cogs": 0,
+          "correction_amount": 9502720,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "fbe27e70-5828-4a2d-a1d7-a8b5394328eb",
+              "batch_number": "B108/2026",
+              "product_name": "Corn Starch BP",
+              "quantity": 1000,
+              "landed_cost_per_unit": 9502.72,
+              "value": 9502720
+            }
+          ]
+        },
+        "je": {
+          "id": "fb145f49-e6fc-4dd5-bbf6-148f25c17bc8",
+          "entry_number": "HFR-260603-COGS-025",
+          "entry_date": "2026-04-13",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "032ed31b-b08e-4061-9801-1a6cb4f6e07b",
+          "reference_number": "SAPJ-26-012",
+          "description": "Historical COGS correction for SAPJ-26-012; additive repair HFR-260603",
+          "total_debit": 9502720,
+          "total_credit": 9502720,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "f8f82a4d-e02d-4c4e-a489-8e6bfb571f90",
+            "journal_entry_id": "fb145f49-e6fc-4dd5-bbf6-148f25c17bc8",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-012",
+            "debit": 9502720,
+            "credit": 0,
+            "customer_id": "ac817bd9-8250-4a98-ae6c-683a2381afb2"
+          },
+          {
+            "id": "fc1df299-2940-48b5-bead-51de377e053a",
+            "journal_entry_id": "fb145f49-e6fc-4dd5-bbf6-148f25c17bc8",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-012",
+            "debit": 0,
+            "credit": 9502720,
+            "customer_id": "ac817bd9-8250-4a98-ae6c-683a2381afb2"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "6ed2c595-d8b9-4826-83ec-176dd8052d60",
+          "invoice_number": "SAPJ-26-009",
+          "invoice_date": "2026-04-09",
+          "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 7799756,
+          "posted_cogs": 0,
+          "correction_amount": 7799756,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "cb5539e0-4c14-4086-ba30-92cf194d5db2",
+              "batch_number": "4001/1101/25/A-3147",
+              "product_name": "Ibuprofen BP",
+              "quantity": 50,
+              "landed_cost_per_unit": 155995.12,
+              "value": 7799756
+            }
+          ]
+        },
+        "je": {
+          "id": "2bec1072-99e6-45d9-a8b3-663727734377",
+          "entry_number": "HFR-260603-COGS-026",
+          "entry_date": "2026-04-09",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "6ed2c595-d8b9-4826-83ec-176dd8052d60",
+          "reference_number": "SAPJ-26-009",
+          "description": "Historical COGS correction for SAPJ-26-009; additive repair HFR-260603",
+          "total_debit": 7799756,
+          "total_credit": 7799756,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "e2832b8d-298e-4dd3-8d92-8d7fdf9d10c7",
+            "journal_entry_id": "2bec1072-99e6-45d9-a8b3-663727734377",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-009",
+            "debit": 7799756,
+            "credit": 0,
+            "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684"
+          },
+          {
+            "id": "8a3817dd-740d-41e0-8636-09b8ba2f156a",
+            "journal_entry_id": "2bec1072-99e6-45d9-a8b3-663727734377",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-009",
+            "debit": 0,
+            "credit": 7799756,
+            "customer_id": "07129eb5-9381-43b9-9417-5e224cd04684"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "5f4eda84-5070-475a-bac8-58552a9c6887",
+          "invoice_number": "SAPJ-26-008",
+          "invoice_date": "2026-03-10",
+          "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 3554531,
+          "posted_cogs": 0,
+          "correction_amount": 3554531,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "6e0aa6a6-9f02-4fcd-a65e-b9eedcfd3d92",
+              "batch_number": "DFK/125090136",
+              "product_name": "Diclofenac Potassium",
+              "quantity": 25,
+              "landed_cost_per_unit": 142181.24,
+              "value": 3554531
+            }
+          ]
+        },
+        "je": {
+          "id": "7e537a53-795a-4308-84f4-a660376b222e",
+          "entry_number": "HFR-260603-COGS-027",
+          "entry_date": "2026-03-10",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "5f4eda84-5070-475a-bac8-58552a9c6887",
+          "reference_number": "SAPJ-26-008",
+          "description": "Historical COGS correction for SAPJ-26-008; additive repair HFR-260603",
+          "total_debit": 3554531,
+          "total_credit": 3554531,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "3fa787bf-4d32-417a-b1ff-565a390c63ad",
+            "journal_entry_id": "7e537a53-795a-4308-84f4-a660376b222e",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-008",
+            "debit": 3554531,
+            "credit": 0,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          },
+          {
+            "id": "48bfa28d-7f07-4aed-93c6-5f49aee466f8",
+            "journal_entry_id": "7e537a53-795a-4308-84f4-a660376b222e",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-008",
+            "debit": 0,
+            "credit": 3554531,
+            "customer_id": "47410ca0-44b7-423a-8d85-09bdc3aa2c78"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "ba93fe46-6316-4029-bd2c-a22bcd190ec3",
+          "invoice_number": "SAPJ-006",
+          "invoice_date": "2025-12-02",
+          "customer_id": "ac817bd9-8250-4a98-ae6c-683a2381afb2",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 2435670,
+          "posted_cogs": 625.44,
+          "correction_amount": 2435044.56,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "3f33b652-59ec-4fbb-91a5-0cc01f2a0266",
+              "batch_number": "1699/2025",
+              "product_name": "Corn Starch BP",
+              "quantity": 200,
+              "landed_cost_per_unit": 12178.35,
+              "value": 2435670
+            }
+          ]
+        },
+        "je": {
+          "id": "cb74bbeb-cf38-40d5-bb48-dbb651e885b9",
+          "entry_number": "HFR-260603-COGS-028",
+          "entry_date": "2025-12-02",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "ba93fe46-6316-4029-bd2c-a22bcd190ec3",
+          "reference_number": "SAPJ-006",
+          "description": "Historical COGS correction for SAPJ-006; additive repair HFR-260603",
+          "total_debit": 2435044.56,
+          "total_credit": 2435044.56,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba"
+        },
+        "lines": [
+          {
+            "id": "8d6c0aeb-0d13-41b0-b5a7-ecc3ae3c15ee",
+            "journal_entry_id": "cb74bbeb-cf38-40d5-bb48-dbb651e885b9",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-006",
+            "debit": 2435044.56,
+            "credit": 0,
+            "customer_id": "ac817bd9-8250-4a98-ae6c-683a2381afb2"
+          },
+          {
+            "id": "f3164a03-9a9f-4771-bfb1-64a7bb258e7f",
+            "journal_entry_id": "cb74bbeb-cf38-40d5-bb48-dbb651e885b9",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-006",
+            "debit": 0,
+            "credit": 2435044.56,
+            "customer_id": "ac817bd9-8250-4a98-ae6c-683a2381afb2"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "bebaa804-1a19-4273-ab82-207dada0f8ee",
+          "invoice_number": "SAPJ-26-020",
+          "invoice_date": "2026-05-21",
+          "customer_id": "b8f9dc5e-2cdf-4527-8960-186bb2a30913",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 1100226.25,
+          "posted_cogs": 0,
+          "correction_amount": 1100226.25,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "0db25472-29a7-432f-a847-938f64aab7b0",
+              "batch_number": "250816w2",
+              "product_name": "Microcrystalline Cellulose (PH - 102)",
+              "quantity": 25,
+              "landed_cost_per_unit": 44009.05,
+              "value": 1100226.25
+            }
+          ]
+        },
+        "je": {
+          "id": "5d4f64f8-e6de-42c7-b188-301baf9d4fb3",
+          "entry_number": "HFR-260603-COGS-029",
+          "entry_date": "2026-05-21",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "bebaa804-1a19-4273-ab82-207dada0f8ee",
+          "reference_number": "SAPJ-26-020",
+          "description": "Historical COGS correction for SAPJ-26-020; additive repair HFR-260603",
+          "total_debit": 1100226.25,
+          "total_credit": 1100226.25,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "c80d4143-a16a-4122-b856-566b8845ab24",
+            "journal_entry_id": "5d4f64f8-e6de-42c7-b188-301baf9d4fb3",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-020",
+            "debit": 1100226.25,
+            "credit": 0,
+            "customer_id": "b8f9dc5e-2cdf-4527-8960-186bb2a30913"
+          },
+          {
+            "id": "f8b3bb53-410a-401d-ad2e-080e979d291f",
+            "journal_entry_id": "5d4f64f8-e6de-42c7-b188-301baf9d4fb3",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-020",
+            "debit": 0,
+            "credit": 1100226.25,
+            "customer_id": "b8f9dc5e-2cdf-4527-8960-186bb2a30913"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "4f6e7ee0-837f-4c42-9eb9-db2dd0d40bac",
+          "invoice_number": "SAPJ-26-015",
+          "invoice_date": "2026-04-22",
+          "customer_id": "de615548-ce42-42b9-9ad9-486f28797b5a",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27",
+          "expected_cogs": 1100226.25,
+          "posted_cogs": 0,
+          "correction_amount": 1100226.25,
+          "is_test_invoice": false,
+          "evidence": [
+            {
+              "batch_id": "0db25472-29a7-432f-a847-938f64aab7b0",
+              "batch_number": "250816w2",
+              "product_name": "Microcrystalline Cellulose (PH - 102)",
+              "quantity": 25,
+              "landed_cost_per_unit": 44009.05,
+              "value": 1100226.25
+            }
+          ]
+        },
+        "je": {
+          "id": "47ca969c-69dc-4541-96f2-0f6a6a47df36",
+          "entry_number": "HFR-260603-COGS-030",
+          "entry_date": "2026-04-22",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "4f6e7ee0-837f-4c42-9eb9-db2dd0d40bac",
+          "reference_number": "SAPJ-26-015",
+          "description": "Historical COGS correction for SAPJ-26-015; additive repair HFR-260603",
+          "total_debit": 1100226.25,
+          "total_credit": 1100226.25,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "cd7b9d5f-d45c-4b5f-b113-68505a8cae27"
+        },
+        "lines": [
+          {
+            "id": "79669147-0705-4dd5-b99d-1f53e8d5b328",
+            "journal_entry_id": "47ca969c-69dc-4541-96f2-0f6a6a47df36",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - SAPJ-26-015",
+            "debit": 1100226.25,
+            "credit": 0,
+            "customer_id": "de615548-ce42-42b9-9ad9-486f28797b5a"
+          },
+          {
+            "id": "4e2e9236-2215-460a-b63a-622178860a8f",
+            "journal_entry_id": "47ca969c-69dc-4541-96f2-0f6a6a47df36",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - SAPJ-26-015",
+            "debit": 0,
+            "credit": 1100226.25,
+            "customer_id": "de615548-ce42-42b9-9ad9-486f28797b5a"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "1e6e52fd-04cd-4139-92c5-657541364193",
+          "invoice_number": "TEST-COGS-405538243-T2",
+          "invoice_date": "2026-06-02",
+          "customer_id": "28bd0ec0-6705-4188-9bb1-82fe5e4da4d8",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 254002.5,
+          "posted_cogs": 0,
+          "correction_amount": 254002.5,
+          "is_test_invoice": true,
+          "evidence": [
+            {
+              "batch_id": "2ef302ab-1ce3-4c95-8024-182b611a9220",
+              "batch_number": "250819W1",
+              "product_name": "Microcrystalline Cellulose (PH - 101)",
+              "quantity": 2,
+              "landed_cost_per_unit": 41998.69,
+              "value": 83997.38
+            },
+            {
+              "batch_id": "2ef302ab-1ce3-4c95-8024-182b611a9220",
+              "batch_number": "250819W1",
+              "product_name": "Microcrystalline Cellulose (PH - 101)",
+              "quantity": 3,
+              "landed_cost_per_unit": 41998.69,
+              "value": 125996.07
+            },
+            {
+              "batch_id": "0db25472-29a7-432f-a847-938f64aab7b0",
+              "batch_number": "250816w2",
+              "product_name": "Microcrystalline Cellulose (PH - 102)",
+              "quantity": 1,
+              "landed_cost_per_unit": 44009.05,
+              "value": 44009.05
+            }
+          ]
+        },
+        "je": {
+          "id": "6542ed89-80ff-4695-8183-ed72e0c068b3",
+          "entry_number": "HFR-260603-COGS-031",
+          "entry_date": "2026-06-02",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "1e6e52fd-04cd-4139-92c5-657541364193",
+          "reference_number": "TEST-COGS-405538243-T2",
+          "description": "Historical COGS correction for TEST-COGS-405538243-T2; additive repair HFR-260603",
+          "total_debit": 254002.5,
+          "total_credit": 254002.5,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba"
+        },
+        "lines": [
+          {
+            "id": "d6651cd3-a986-4ac2-af88-8e8a2af7e96e",
+            "journal_entry_id": "6542ed89-80ff-4695-8183-ed72e0c068b3",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - TEST-COGS-405538243-T2",
+            "debit": 254002.5,
+            "credit": 0,
+            "customer_id": "28bd0ec0-6705-4188-9bb1-82fe5e4da4d8"
+          },
+          {
+            "id": "b18038ef-236c-4a3b-9785-b4939fbe3903",
+            "journal_entry_id": "6542ed89-80ff-4695-8183-ed72e0c068b3",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - TEST-COGS-405538243-T2",
+            "debit": 0,
+            "credit": 254002.5,
+            "customer_id": "28bd0ec0-6705-4188-9bb1-82fe5e4da4d8"
+          }
+        ]
+      },
+      {
+        "kind": "cogs",
+        "issue": {
+          "invoice_id": "376f62f1-1532-45fc-983e-22e69717577a",
+          "invoice_number": "TEST-COGS-405537616-T1",
+          "invoice_date": "2026-06-02",
+          "customer_id": "28bd0ec0-6705-4188-9bb1-82fe5e4da4d8",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba",
+          "expected_cogs": 41998.69,
+          "posted_cogs": 0,
+          "correction_amount": 41998.69,
+          "is_test_invoice": true,
+          "evidence": [
+            {
+              "batch_id": "2ef302ab-1ce3-4c95-8024-182b611a9220",
+              "batch_number": "250819W1",
+              "product_name": "Microcrystalline Cellulose (PH - 101)",
+              "quantity": 1,
+              "landed_cost_per_unit": 41998.69,
+              "value": 41998.69
+            }
+          ]
+        },
+        "je": {
+          "id": "2a5be477-3b96-4598-be72-9ccbe8dae296",
+          "entry_number": "HFR-260603-COGS-032",
+          "entry_date": "2026-06-02",
+          "source_module": "historical_cogs_correction",
+          "reference_id": "376f62f1-1532-45fc-983e-22e69717577a",
+          "reference_number": "TEST-COGS-405537616-T1",
+          "description": "Historical COGS correction for TEST-COGS-405537616-T1; additive repair HFR-260603",
+          "total_debit": 41998.69,
+          "total_credit": 41998.69,
+          "is_posted": true,
+          "posted_at": "2026-06-03T03:51:52.453Z",
+          "created_by": "87d975a9-2a46-49a5-9014-f244d1140aba"
+        },
+        "lines": [
+          {
+            "id": "f8ac9b9d-c4c4-40c4-a602-fb87fc1db11e",
+            "journal_entry_id": "2a5be477-3b96-4598-be72-9ccbe8dae296",
+            "line_number": 1,
+            "account_id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+            "description": "Historical COGS correction - TEST-COGS-405537616-T1",
+            "debit": 41998.69,
+            "credit": 0,
+            "customer_id": "28bd0ec0-6705-4188-9bb1-82fe5e4da4d8"
+          },
+          {
+            "id": "fd3212d5-8bef-43d0-8807-cb7ec04df195",
+            "journal_entry_id": "2a5be477-3b96-4598-be72-9ccbe8dae296",
+            "line_number": 2,
+            "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+            "description": "Historical inventory credit for COGS correction - TEST-COGS-405537616-T1",
+            "debit": 0,
+            "credit": 41998.69,
+            "customer_id": "28bd0ec0-6705-4188-9bb1-82fe5e4da4d8"
+          }
+        ]
+      }
+    ],
+    "balancing": [
+      {
+        "kind": "balance_line",
+        "issue": {
+          "id": "3bb7a82a-5f44-4585-b7a7-1e78bc3e4770",
+          "entry_number": "JE-2511-0002",
+          "entry_date": "2025-11-25",
+          "source_module": "purchase_invoice",
+          "reference_id": "819d782a-8e3f-4edf-bfd6-25c2b351a156",
+          "reference_number": "SSM/251100490",
+          "total_debit": 4684685,
+          "total_credit": 5200000.35,
+          "delta_debit_minus_credit": -515315.35,
+          "max_line_number": 2,
+          "lines": [
+            {
+              "id": "ab938d8c-fbb2-4a75-9122-b7c7914bc256",
+              "line_number": 1,
+              "account": "2110 Accounts Payable",
+              "debit": 0,
+              "credit": 5200000.35,
+              "description": "A/P - SSM/251100490"
+            },
+            {
+              "id": "a6d5eccc-2fb1-43ef-a7bb-078b8318fefe",
+              "line_number": 2,
+              "account": "1203 Air Conditioners",
+              "debit": 4684685,
+              "credit": 0,
+              "description": "AC 1.5 PK MIDEA "
+            }
+          ]
+        },
+        "line": {
+          "id": "f088247e-1b1d-4b4a-ae9c-5f45c04b53e8",
+          "journal_entry_id": "3bb7a82a-5f44-4585-b7a7-1e78bc3e4770",
+          "line_number": 3,
+          "account_id": "a36fb65b-ff03-4bb6-9edb-e216a54c0fe6",
+          "description": "Corrective balancing debit for missing 11% PPN input; additive repair HFR-260603",
+          "debit": 515315.35,
+          "credit": 0
+        },
+        "headerUpdate": {
+          "id": "3bb7a82a-5f44-4585-b7a7-1e78bc3e4770",
+          "old_total_debit": 4684685,
+          "old_total_credit": 5200000.35,
+          "new_total_debit": 5200000.35,
+          "new_total_credit": 5200000.35
+        }
+      },
+      {
+        "kind": "balance_line",
+        "issue": {
+          "id": "d94350f4-37b7-434c-96b0-73b11e06cb9d",
+          "entry_number": "JE-2510-0002",
+          "entry_date": "2025-10-15",
+          "source_module": "purchase_invoice",
+          "reference_id": "ce0f0791-55a3-4217-85ce-edbc11ee3875",
+          "reference_number": "SO/25100560",
+          "total_debit": 4684685,
+          "total_credit": 5200000.35,
+          "delta_debit_minus_credit": -515315.35,
+          "max_line_number": 2,
+          "lines": [
+            {
+              "id": "8b95df1d-7b73-455e-b760-f5044fb808ae",
+              "line_number": 1,
+              "account": "2110 Accounts Payable",
+              "debit": 0,
+              "credit": 5200000.35,
+              "description": "A/P - SO/25100560"
+            },
+            {
+              "id": "0b257bf3-33e7-4465-879c-6c01228c10f4",
+              "line_number": 2,
+              "account": "1203 Air Conditioners",
+              "debit": 4684685,
+              "credit": 0,
+              "description": "AC 1.5 PK MIDEA "
+            }
+          ]
+        },
+        "line": {
+          "id": "f4b7022b-a0c4-4419-a7d3-6f0297470756",
+          "journal_entry_id": "d94350f4-37b7-434c-96b0-73b11e06cb9d",
+          "line_number": 3,
+          "account_id": "a36fb65b-ff03-4bb6-9edb-e216a54c0fe6",
+          "description": "Corrective balancing debit for missing 11% PPN input; additive repair HFR-260603",
+          "debit": 515315.35,
+          "credit": 0
+        },
+        "headerUpdate": {
+          "id": "d94350f4-37b7-434c-96b0-73b11e06cb9d",
+          "old_total_debit": 4684685,
+          "old_total_credit": 5200000.35,
+          "new_total_debit": 5200000.35,
+          "new_total_credit": 5200000.35
+        }
+      },
+      {
+        "kind": "balance_line",
+        "issue": {
+          "id": "d403aeb3-13b9-4e17-a3a5-95653dbc1941",
+          "entry_number": "JE-2509-0002",
+          "entry_date": "2025-09-26",
+          "source_module": "purchase_invoice",
+          "reference_id": "52519cbf-d8e5-4aad-9bc8-1b5c1b1ce190",
+          "reference_number": "E0000220/2526",
+          "total_debit": 71581,
+          "total_credit": 70598.5,
+          "delta_debit_minus_credit": 982.5,
+          "max_line_number": 11,
+          "lines": [
+            {
+              "id": "277d919e-5662-4e28-a0e1-b162093029cc",
+              "line_number": 2,
+              "account": "1130 Inventory",
+              "debit": 8350,
+              "credit": 0,
+              "description": "Piroxicam USP 2025 (Non DMF Grade) - HS Code: 29343000, Batch: PRAH0640725, Mfg: Jul 2025, Exp: Jun "
+            },
+            {
+              "id": "10f93b84-7a9e-43ae-b374-a79c3c688556",
+              "line_number": 3,
+              "account": "1130 Inventory",
+              "debit": 15616,
+              "credit": 0,
+              "description": "Dextromethorphan Hydrobromide USP - HS Code: 29339990, Batch: DX/L/25/0048, Mfg: Jun 2025, Exp: May "
+            },
+            {
+              "id": "ec243a4f-55f2-4fcc-a098-c1306fc8173f",
+              "line_number": 4,
+              "account": "1130 Inventory",
+              "debit": 4680,
+              "credit": 0,
+              "description": "Microcrystalline Cellulose PH-101 USP 44/NF 39 - HS Code: 39129090, Batch: 250819W1, Mfg: Aug 2025, "
+            },
+            {
+              "id": "be4886b1-9361-48e1-8759-79bed8c7ef02",
+              "line_number": 5,
+              "account": "1130 Inventory",
+              "debit": 27450,
+              "credit": 0,
+              "description": "Ibuprofen BP 2024 - HS Code: 29163990, Batches: 4001/1101/25/A-3145/3146/3147, Mfg: Aug 2025, Exp: J"
+            },
+            {
+              "id": "00b482de-42f6-4286-85c8-64d04a512e7c",
+              "line_number": 6,
+              "account": "1130 Inventory",
+              "debit": 982.5,
+              "credit": 0,
+              "description": "Domperidone Maleate BP - HS Code: 29225090, Batch: BDM/2508060, Mfg: Aug 2025, Exp: Jul 2030, Mfg by"
+            },
+            {
+              "id": "d249e33b-84be-452e-8b3a-b39f89fb5a90",
+              "line_number": 7,
+              "account": "1130 Inventory",
+              "debit": 3440,
+              "credit": 0,
+              "description": "Cetirizine Hydrochloride USP - HS Code: 29335990, Batch: 25CTH027, Mfg: Aug 2025, Exp: Jul 2029, Mfg"
+            },
+            {
+              "id": "87b7d295-e3ec-4c29-aaa4-3966e37e3452",
+              "line_number": 8,
+              "account": "1130 Inventory",
+              "debit": 1418,
+              "credit": 0,
+              "description": "Lidocaine HCL USP 2025 - HS Code: 29242990, Batch: LHCP0350525, Mfg: May 2025, Exp: Apr 2030, Mfg by"
+            },
+            {
+              "id": "7d2017fe-6083-47cc-8735-ad4fb13825ab",
+              "line_number": 9,
+              "account": "1130 Inventory",
+              "debit": 3742,
+              "credit": 0,
+              "description": "Minoxidil EP 11.0 - HS Code: 29335990, Batch: K007.2/25/07/335, Mfg: Jul 2025, Exp: Jun 2030, Mfg by"
+            },
+            {
+              "id": "7de7405f-56c1-4450-b961-da82299901db",
+              "line_number": 10,
+              "account": "1130 Inventory",
+              "debit": 4920,
+              "credit": 0,
+              "description": "Microcrystalline Cellulose PH-102 USP 44/NF 39 - HS Code: 39129090, Batch: 250816W2, Mfg: Aug 2025, "
+            },
+            {
+              "id": "83bf5cb0-ccd6-4db4-8862-22f9cde4a9c7",
+              "line_number": 1,
+              "account": "2110 Accounts Payable",
+              "debit": 0,
+              "credit": 70598.5,
+              "description": "A/P - E0000220/2526"
+            },
+            {
+              "id": "f5cb517d-1340-49cf-a9f2-80a43268e13b",
+              "line_number": 11,
+              "account": "1130 Inventory",
+              "debit": 982.5,
+              "credit": 0,
+              "description": "Domperidone Maleate BP1"
+            }
+          ]
+        },
+        "line": {
+          "id": "365d26d1-e6f4-4883-bf05-49893db22149",
+          "journal_entry_id": "d403aeb3-13b9-4e17-a3a5-95653dbc1941",
+          "line_number": 12,
+          "account_id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+          "description": "Corrective balancing credit for duplicate inventory debit; additive repair HFR-260603",
+          "debit": 0,
+          "credit": 982.5
+        },
+        "headerUpdate": {
+          "id": "d403aeb3-13b9-4e17-a3a5-95653dbc1941",
+          "old_total_debit": 71581,
+          "old_total_credit": 70598.5,
+          "new_total_debit": 71581,
+          "new_total_credit": 71581
+        }
+      }
+    ],
+    "stock": [
+      {
+        "kind": "stock",
+        "issue": {
+          "batch_id": "0db25472-29a7-432f-a847-938f64aab7b0",
+          "batch_number": "250816w2",
+          "product_id": "3e5fd03d-c2b6-4507-8333-8a1ea8b9decc",
+          "product_name": "Microcrystalline Cellulose (PH - 102)",
+          "product_current_stock": 1449,
+          "import_quantity": 2000,
+          "current_stock": 1449,
+          "delivered": 550,
+          "invoiced": 551,
+          "physical_expected_stock": 1450,
+          "adjustment_quantity": 1,
+          "landed_cost_per_unit": 44009.05,
+          "valuation_impact": 44009.05
+        },
+        "transaction": {
+          "id": "af0049b7-f2c8-4311-a95c-5c93b79599ed",
+          "batch_id": "0db25472-29a7-432f-a847-938f64aab7b0",
+          "product_id": "3e5fd03d-c2b6-4507-8333-8a1ea8b9decc",
+          "transaction_type": "adjustment",
+          "quantity": 1,
+          "reference_type": "historical_stock_adjustment",
+          "reference_id": "0db25472-29a7-432f-a847-938f64aab7b0",
+          "reference_number": "HFR-260603-STOCK",
+          "transaction_date": "2026-06-03",
+          "notes": "Historical physical stock correction for batch 250816w2; current 1449, delivered 550, import 2000; additive repair HFR-260603",
+          "stock_before": 1449,
+          "stock_after": 1450,
+          "metadata": {
+            "repair_run": "HFR-260603",
+            "product_name": "Microcrystalline Cellulose (PH - 102)",
+            "batch_number": "250816w2",
+            "import_quantity": 2000,
+            "delivered": 550,
+            "invoiced": 551,
+            "valuation_impact": 44009.05
+          }
+        },
+        "batchUpdate": {
+          "id": "0db25472-29a7-432f-a847-938f64aab7b0",
+          "old_current_stock": 1449,
+          "new_current_stock": 1450
+        },
+        "productUpdate": {
+          "id": "3e5fd03d-c2b6-4507-8333-8a1ea8b9decc",
+          "old_current_stock": 1449,
+          "new_current_stock": 1450
+        }
+      },
+      {
+        "kind": "stock",
+        "issue": {
+          "batch_id": "cb5539e0-4c14-4086-ba30-92cf194d5db2",
+          "batch_number": "4001/1101/25/A-3147",
+          "product_id": "4fd7e5b5-1226-4044-b9bd-e16e1e8a516a",
+          "product_name": "Ibuprofen BP",
+          "product_current_stock": 50,
+          "import_quantity": 1000,
+          "current_stock": 0,
+          "delivered": 1050,
+          "invoiced": 1000,
+          "physical_expected_stock": -50,
+          "adjustment_quantity": -50,
+          "landed_cost_per_unit": 155995.12,
+          "valuation_impact": -7799756
+        },
+        "transaction": {
+          "id": "7372f0f6-b2a2-47ad-9627-428566832b7e",
+          "batch_id": "cb5539e0-4c14-4086-ba30-92cf194d5db2",
+          "product_id": "4fd7e5b5-1226-4044-b9bd-e16e1e8a516a",
+          "transaction_type": "adjustment",
+          "quantity": -50,
+          "reference_type": "historical_stock_adjustment",
+          "reference_id": "cb5539e0-4c14-4086-ba30-92cf194d5db2",
+          "reference_number": "HFR-260603-STOCK",
+          "transaction_date": "2026-06-03",
+          "notes": "Historical physical stock correction for batch 4001/1101/25/A-3147; current 0, delivered 1050, import 1000; additive repair HFR-260603",
+          "stock_before": 0,
+          "stock_after": -50,
+          "metadata": {
+            "repair_run": "HFR-260603",
+            "product_name": "Ibuprofen BP",
+            "batch_number": "4001/1101/25/A-3147",
+            "import_quantity": 1000,
+            "delivered": 1050,
+            "invoiced": 1000,
+            "valuation_impact": -7799756
+          }
+        },
+        "batchUpdate": {
+          "id": "cb5539e0-4c14-4086-ba30-92cf194d5db2",
+          "old_current_stock": 0,
+          "new_current_stock": -50
+        },
+        "productUpdate": {
+          "id": "4fd7e5b5-1226-4044-b9bd-e16e1e8a516a",
+          "old_current_stock": 50,
+          "new_current_stock": 0
+        }
+      }
+    ]
+  }
+}

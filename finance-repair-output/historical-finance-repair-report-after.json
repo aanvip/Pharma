@@ -1,0 +1,91 @@
+{
+  "summary": {
+    "missing_cogs_correction_count": 0,
+    "missing_cogs_correction_total": 0,
+    "unbalanced_journal_count": 0,
+    "unbalanced_journal_total_delta": 0,
+    "stock_adjustment_count": 0,
+    "stock_valuation_impact": 0,
+    "inventory_gl": {
+      "account_1130_gl": -3020514430.59,
+      "batch_valuation": 1547191616.61,
+      "variance_gl_minus_batch": -4567706047.2
+    },
+    "trial_balance_delta_debit_minus_credit": 0
+  },
+  "report": {
+    "generated_at": "2026-06-03T03:51:57.765Z",
+    "accounts": {
+      "cogs_5100": {
+        "id": "f78ba556-94ff-456b-8645-34d6b0494d97",
+        "code": "5100",
+        "name": "COGS - Materials",
+        "account_type": "expense"
+      },
+      "inventory_1130": {
+        "id": "cf7cd507-ff0d-4abf-9341-23e4177ad799",
+        "code": "1130",
+        "name": "Inventory",
+        "account_type": "asset"
+      },
+      "prepaid_1140_used_for_missing_ppn_input": {
+        "id": "a36fb65b-ff03-4bb6-9edb-e216a54c0fe6",
+        "code": "1140",
+        "name": "Prepaid Expenses",
+        "account_type": "asset"
+      },
+      "ppn_input_1150_exists": false
+    },
+    "missing_cogs": {
+      "count": 0,
+      "total_expected_cogs": 0,
+      "total_posted_cogs_on_affected_invoices": 0,
+      "total_correction": 0,
+      "test_invoice_correction_total": 0,
+      "issues": []
+    },
+    "unbalanced_journals": {
+      "count": 0,
+      "total_delta_debit_minus_credit": 0,
+      "issues": []
+    },
+    "inventory": {
+      "account_1130_gl": -3020514430.59,
+      "batch_valuation": 1547191616.61,
+      "variance_gl_minus_batch": -4567706047.2
+    },
+    "physical_stock_targets": [
+      {
+        "batch_id": "0db25472-29a7-432f-a847-938f64aab7b0",
+        "batch_number": "250816w2",
+        "product_id": "3e5fd03d-c2b6-4507-8333-8a1ea8b9decc",
+        "product_name": "Microcrystalline Cellulose (PH - 102)",
+        "product_current_stock": 1450,
+        "import_quantity": 2000,
+        "current_stock": 1450,
+        "delivered": 550,
+        "invoiced": 551,
+        "physical_expected_stock": 1450,
+        "adjustment_quantity": 0,
+        "landed_cost_per_unit": 44009.05,
+        "valuation_impact": 0
+      },
+      {
+        "batch_id": "cb5539e0-4c14-4086-ba30-92cf194d5db2",
+        "batch_number": "4001/1101/25/A-3147",
+        "product_id": "4fd7e5b5-1226-4044-b9bd-e16e1e8a516a",
+        "product_name": "Ibuprofen BP",
+        "product_current_stock": 0,
+        "import_quantity": 1000,
+        "current_stock": -50,
+        "delivered": 1050,
+        "invoiced": 1000,
+        "physical_expected_stock": -50,
+        "adjustment_quantity": 0,
+        "landed_cost_per_unit": 155995.12,
+        "valuation_impact": 0
+      }
+    ],
+    "trial_balance_delta_debit_minus_credit": 0
+  }
+}
