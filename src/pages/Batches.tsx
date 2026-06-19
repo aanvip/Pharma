@@ -612,44 +612,32 @@ export function Batches() {
         return;
       }
 
-      // --- Admin / Accounts: hard delete — only if no stock was consumed ---
-      if (batch && batch.current_stock < batch.import_quantity) {
-        showToast({
-          type: 'error', title: 'Cannot Delete',
-          message: `${batchLabel} has had stock consumed (imported: ${batch.import_quantity}, remaining: ${batch.current_stock}). Use the Archive button instead.`,
-        });
-        return;
-      }
+      // --- Admin / Accounts: hard delete via server-side RPC ---
+      // All child deletes (batch_documents, inventory_transactions, finance_expenses,
+      // stock_reservations) and the parent batch delete run in one atomic PL/pgSQL
+      // transaction with SECURITY DEFINER. The RPC re-checks all guards server-side
+      // and returns { deleted: boolean, reason?: string } — no silent RLS gaps.
 
       const confirmed = await showConfirm({
         title: 'Delete Batch',
-        message: `Permanently delete ${batchLabel}? This removes its documents and purchase transaction. This cannot be undone.`,
+        message: `Permanently delete ${batchLabel}? This removes its documents, transactions, and expenses. This cannot be undone.`,
         variant: 'danger',
         confirmLabel: 'Delete Permanently',
       });
       if (!confirmed) return;
 
-      const { error: docsError } = await supabase.from('batch_documents').delete().eq('batch_id', id);
-      if (docsError) throw docsError;
+      const { data: result, error: rpcError } = await supabase
+        .rpc('delete_batch_safe', { p_batch_id: id });
 
-      const { error: txError } = await supabase.from('inventory_transactions').delete().eq('batch_id', id);
-      if (txError) throw txError;
+      if (rpcError) {
+        console.error('[Batch delete] RPC error:', rpcError);
+        throw rpcError;
+      }
 
-      const { error: expensesError } = await supabase.from('finance_expenses').delete().eq('batch_id', id);
-      if (expensesError) throw expensesError;
-
-      // Delete the batch row — use .select('id') to detect a silent RLS block
-      const { data: deleted, error: deleteError } = await supabase
-        .from('batches')
-        .delete()
-        .eq('id', id)
-        .select('id');
-
-      if (deleteError) throw deleteError;
-
-      if (!deleted || deleted.length === 0) {
-        console.error('[Batch delete] Delete returned 0 rows — RLS or permission denied for id:', id);
-        showToast({ type: 'error', title: 'Delete Failed', message: 'Delete not allowed for your role or this batch is linked to stock/accounting.' });
+      if (!result?.deleted) {
+        const reason = result?.reason || 'Delete blocked by policy.';
+        console.error('[Batch delete] RPC returned deleted=false:', reason, 'batch id:', id);
+        showToast({ type: 'error', title: 'Delete Failed', message: reason });
         return;
       }
 
