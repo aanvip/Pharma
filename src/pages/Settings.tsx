@@ -120,6 +120,7 @@ export function Settings() {
       const { data, error } = await supabase
         .from('app_settings')
         .select('*')
+        .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle();
 
