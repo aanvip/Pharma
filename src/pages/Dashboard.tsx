@@ -8,6 +8,7 @@ import { TodaysActionsDashboard } from '../components/commandCenter/TodaysAction
 import { RevenueChart } from '../components/dashboard/RevenueChart';
 import { SalesPipelineChart } from '../components/dashboard/SalesPipelineChart';
 import { PaymentOverview } from '../components/dashboard/PaymentOverview';
+import { SalesDashboard } from '../components/dashboard/SalesDashboard';
 import { AlertTriangle, Clock, TrendingUp, FileText, ClipboardCheck, ClipboardList, Zap, CircleUser as UserCircle, ArrowRight, Sparkles } from 'lucide-react';
 import { fetchSalesOrderDeliveryAlerts, summarizeDeliveryAlerts } from '../utils/salesOrderDeliveryAlerts';
 
@@ -62,6 +63,8 @@ export function Dashboard() {
   }, []);
 
   const loadDashboardData = async () => {
+    // Sales role has its own dedicated dashboard; skip all generic queries.
+    if (profile?.role === 'sales') { setLoading(false); return; }
     try {
       setError(null);
       const now = new Date();
@@ -304,6 +307,15 @@ export function Dashboard() {
     quickLinks.push({ label: 'Purchase Orders', page: 'purchase-orders', icon: ClipboardList, color: 'bg-gray-50 hover:bg-gray-100 text-gray-700' });
   }
 
+  // Sales role gets a dedicated CRM action dashboard instead of the generic layout.
+  if (isSales) {
+    return (
+      <Layout>
+        <SalesDashboard />
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="space-y-4">
@@ -380,11 +392,6 @@ export function Dashboard() {
                 <SalesPipelineChart />
               </div>
             )}
-            {isSales && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <SalesPipelineChart />
-              </div>
-            )}
           </>
         )}
 
@@ -394,7 +401,7 @@ export function Dashboard() {
               <PaymentOverview />
             </div>
           )}
-          {(isAdmin || isSales || isWarehouse || isManager) && (
+          {(isAdmin || isWarehouse || isManager) && (
             <div className="md:col-span-1 lg:col-span-1">
               <TodaysActionsDashboard />
             </div>
