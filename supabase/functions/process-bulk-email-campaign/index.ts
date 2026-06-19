@@ -119,6 +119,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const totals = [];
+    let hasPendingWork = false;
+    let nextRunDelaySecs = 30;
     for (const campaignId of campaignIds) {
     if (!isInternal && !requestedCampaignId) {
       return new Response(JSON.stringify({ success: false, error: "Worker secret is required to process due campaigns" }), {
@@ -181,25 +183,34 @@ Deno.serve(async (req: Request) => {
       let result: any = null;
 
       try {
-        const response = await fetch(`${supabaseUrl}/functions/v1/send-bulk-email`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${serviceKey}`,
-            "X-Bulk-Email-Worker-Secret": workerSecret,
-          },
-          body: JSON.stringify({
-            userId: campaign.created_by,
-            toEmails,
-            subject,
-            body: htmlBody,
-            contactId: row.contact_id,
-            senderName: campaign.sender_name || "",
-            isHtml: true,
-            attachmentUrls: campaign.attachments_context || [],
-            workflowType: "crm_bulk_email",
-          }),
-        });
+        // 30-second timeout per recipient — prevents one slow send from blocking the whole batch
+        const sendController = new AbortController();
+        const sendTimer = setTimeout(() => sendController.abort(), 30_000);
+        let response: Response;
+        try {
+          response = await fetch(`${supabaseUrl}/functions/v1/send-bulk-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceKey}`,
+              "X-Bulk-Email-Worker-Secret": workerSecret,
+            },
+            body: JSON.stringify({
+              userId: campaign.created_by,
+              toEmails,
+              subject,
+              body: htmlBody,
+              contactId: row.contact_id,
+              senderName: campaign.sender_name || "",
+              isHtml: true,
+              attachmentUrls: campaign.attachments_context || [],
+              workflowType: "crm_bulk_email",
+            }),
+            signal: sendController.signal,
+          });
+        } finally {
+          clearTimeout(sendTimer);
+        }
         status = response.status;
         result = await response.json().catch(() => ({}));
 
@@ -270,7 +281,36 @@ Deno.serve(async (req: Request) => {
       .eq("id", campaignId)
       .eq("worker_lock_id", executionId);
 
+    if (!done) {
+      hasPendingWork = true;
+      nextRunDelaySecs = delaySeconds;
+    }
+
     totals.push({ campaignId, processed, done, pending, sent, failed });
+    }
+
+    // Self-schedule: if any campaign still has pending recipients, fire the next
+    // worker invocation after the configured delay. This makes the pipeline work
+    // even when pg_cron is not installed or app_settings are not configured.
+    // Cap the wait at 55 s so it stays within Edge Function wall-clock limits;
+    // for longer delays the claim guard (next_run_at) prevents early processing.
+    if (hasPendingWork && workerSecret) {
+      const waitMs = Math.min(nextRunDelaySecs * 1000, 55_000);
+      const nextUrl = `${supabaseUrl}/functions/v1/process-bulk-email-campaign`;
+      const secret = workerSecret;
+      EdgeRuntime.waitUntil(
+        (async () => {
+          if (waitMs > 0) await new Promise<void>(r => setTimeout(r, waitMs));
+          await fetch(nextUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Bulk-Email-Worker-Secret": secret,
+            },
+            body: "{}",
+          }).catch(() => {});
+        })()
+      );
     }
 
     return new Response(JSON.stringify({ success: true, campaigns: totals, executionId }), {

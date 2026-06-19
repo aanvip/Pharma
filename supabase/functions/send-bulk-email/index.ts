@@ -598,44 +598,6 @@ Deno.serve(async (req: Request) => {
 
     const result = await sendResponse.json();
 
-    let gmailStoredMessageSource: string | null = null;
-    let gmailStoredAttachmentCount: number | null = null;
-    if (result.id) {
-      try {
-        const storedResponse = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${result.id}?format=raw`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${accessToken}`,
-          },
-        });
-        if (storedResponse.ok) {
-          const storedMessage = await storedResponse.json();
-          if (storedMessage?.raw) {
-            gmailStoredMessageSource = decodeBase64Url(storedMessage.raw);
-            const storedMimeSummary = summarizeMime(gmailStoredMessageSource);
-            gmailStoredAttachmentCount = Number(storedMimeSummary.attachmentCount || 0);
-            console.log("[quotation-email-debug] Actual Gmail stored message source after send", {
-              messageId: result.id,
-              threadId: result.threadId || null,
-              containsTableTags: inspectEmailHtml(gmailStoredMessageSource),
-              source: gmailStoredMessageSource,
-            });
-            console.log("[quotation-delivery-debug] Gmail stored message summary after send", {
-              messageId: result.id,
-              threadId: result.threadId || null,
-              finalGmailRecipientList: finalRecipientList,
-              attachmentFilenames: fileAttachments.map(att => att.filename),
-              ...storedMimeSummary,
-            });
-          }
-        } else {
-          console.warn("[quotation-email-debug] Could not fetch Gmail stored message source", await storedResponse.text());
-        }
-      } catch (storedError) {
-        console.warn("[quotation-email-debug] Error reading Gmail stored message source", storedError);
-      }
-    }
-
     return new Response(
       JSON.stringify({
         success: true,
@@ -645,9 +607,7 @@ Deno.serve(async (req: Request) => {
         senderEmail: connection.email_address,
         actualRecipientsSent: finalRecipientList,
         gmailMimeAttachmentCount: fileAttachments.length,
-        gmailStoredAttachmentCount,
         attachmentFilenames: fileAttachments.map(att => att.filename),
-        gmailStoredMessageContainsTableTags: gmailStoredMessageSource ? inspectEmailHtml(gmailStoredMessageSource) : null,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
