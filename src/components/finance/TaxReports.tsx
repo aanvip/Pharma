@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { FileText, Download, Calendar, TrendingUp, TrendingDown } from 'lucide-react';
+import { Download, Calendar, TrendingUp, TrendingDown, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { formatDate } from '../../utils/dateFormat';
 
@@ -12,6 +12,16 @@ interface InputPPNRecord {
   import_invoice_value: number;
   ppn_amount: number;
   description: string;
+}
+
+interface PPh22Record {
+  month: string;
+  expense_date: string;
+  voucher_number: string | null;
+  container_ref: string;
+  supplier: string;
+  pph22_amount: number;
+  description: string | null;
 }
 
 interface OutputPPNRecord {
@@ -38,8 +48,9 @@ export function TaxReports() {
   const [inputPPN, setInputPPN] = useState<InputPPNRecord[]>([]);
   const [outputPPN, setOutputPPN] = useState<OutputPPNRecord[]>([]);
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummary[]>([]);
+  const [pph22Records, setPph22Records] = useState<PPh22Record[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'summary' | 'input' | 'output'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'input' | 'output' | 'pph22'>('summary');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
 
   useEffect(() => {
@@ -50,19 +61,23 @@ export function TaxReports() {
     try {
       setLoading(true);
 
-      const [summaryRes, inputRes, outputRes] = await Promise.all([
+      const [summaryRes, inputRes, outputRes, pph22Res] = await Promise.all([
         supabase.from('vw_monthly_tax_summary').select('*').order('month', { ascending: false }),
         supabase.from('vw_input_ppn_report').select('*'),
         supabase.from('vw_output_ppn_report').select('*'),
+        supabase.from('vw_pph22_advance_tax_report').select('*'),
       ]);
 
       if (summaryRes.error) throw summaryRes.error;
       if (inputRes.error) throw inputRes.error;
       if (outputRes.error) throw outputRes.error;
+      // pph22 view is non-critical; warn but don't abort
+      if (pph22Res.error) console.warn('PPh22 report error:', pph22Res.error.message);
 
       setMonthlySummary(summaryRes.data || []);
       setInputPPN(inputRes.data || []);
       setOutputPPN(outputRes.data || []);
+      setPph22Records(pph22Res.data || []);
     } catch (error: any) {
       console.error('Error loading tax reports:', error.message);
       alert('Failed to load tax reports');
@@ -108,8 +123,9 @@ export function TaxReports() {
       <div className="flex gap-1.5 border-b border-gray-200 bg-white">
         {[
           { value: 'summary', label: t('finance.monthlySummary') || 'Monthly Summary', icon: Calendar },
-          { value: 'input', label: t('finance.inputPPN') || 'Input PPN', icon: TrendingDown },
-          { value: 'output', label: t('finance.outputPPN') || 'Output PPN', icon: TrendingUp },
+          { value: 'input',   label: t('finance.inputPPN')       || 'Input PPN',       icon: TrendingDown },
+          { value: 'output',  label: t('finance.outputPPN')      || 'Output PPN',      icon: TrendingUp },
+          { value: 'pph22',   label: 'PPh 22 Advance Tax',                             icon: ShieldCheck },
         ].map((tab) => {
           const Icon = tab.icon;
           return (
@@ -355,6 +371,72 @@ export function TaxReports() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'pph22' && (
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="px-3 py-2 bg-purple-50 border-b border-purple-200">
+                <h3 className="text-sm font-medium text-purple-900">PPh 22 Advance Income Tax Report</h3>
+                <p className="text-[10px] text-purple-700">
+                  PPh 22 paid on imports — recorded as a prepaid asset (account 1155).
+                  Use this report when preparing the annual corporate tax return (SPT Tahunan).
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Date</th>
+                      <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Voucher</th>
+                      <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Container</th>
+                      <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Supplier</th>
+                      <th className="px-3 py-1.5 text-right text-[10px] font-medium text-gray-500 uppercase">PPh 22 Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {pph22Records.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-3 py-4 text-center text-gray-500 text-xs">
+                          No PPh 22 records found
+                        </td>
+                      </tr>
+                    ) : (
+                      <>
+                        {pph22Records.map((record, index) => (
+                          <tr key={index} className="hover:bg-gray-50">
+                            <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-900">
+                              {formatDate(record.expense_date)}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-xs font-mono text-gray-600">
+                              {record.voucher_number || '—'}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
+                              {record.container_ref}
+                            </td>
+                            <td className="px-3 py-2 text-xs text-gray-700">{record.supplier}</td>
+                            <td className="px-3 py-2 whitespace-nowrap text-xs text-right font-medium text-purple-600">
+                              {formatCurrency(record.pph22_amount)}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="bg-purple-50 font-bold">
+                          <td colSpan={4} className="px-3 py-2 text-xs text-right text-gray-900">Total PPh 22 Dibayar Dimuka:</td>
+                          <td className="px-3 py-2 text-xs text-right text-purple-700">
+                            {formatCurrency(pph22Records.reduce((s, r) => s + r.pph22_amount, 0))}
+                          </td>
+                        </tr>
+                      </>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-3 py-2 bg-purple-50 border-t border-purple-200">
+                <p className="text-[10px] text-purple-800">
+                  <strong>Account 1155 — PPh 22 Dibayar Dimuka</strong>: This balance reduces your annual income tax liability.
+                  During annual tax filing, this asset is applied against the corporate tax payable (SPT Tahunan Badan).
+                </p>
               </div>
             </div>
           )}

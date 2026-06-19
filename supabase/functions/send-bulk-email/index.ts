@@ -120,15 +120,20 @@ function joinEmails(list: string[] | undefined | null): string {
   return list.filter(e => typeof e === "string" && e.trim().length > 0).join(", ");
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function parseEmailRecipients(raw: unknown): string[] {
   if (Array.isArray(raw)) {
-    return raw.flatMap(item => parseEmailRecipients(item));
+    const seen = new Set<string>();
+    return raw
+      .flatMap(item => parseEmailRecipients(item))
+      .filter(email => (seen.has(email) ? false : (seen.add(email), true)));
   }
   if (typeof raw !== "string") return [];
   return raw
-    .split(/[;,]/)
+    .split(/[,;\s\r\n]+/)
     .map(email => email.trim())
-    .filter(Boolean);
+    .filter(email => EMAIL_RE.test(email));
 }
 
 function filenameFromDisposition(disposition: string | null): string | null {

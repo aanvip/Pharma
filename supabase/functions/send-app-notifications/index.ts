@@ -12,6 +12,18 @@ const corsHeaders = {
 const WAREHOUSE_EMAIL = "accounts@sapharmajaya.co.id";
 const APP_URL = "https://sapharmajaya.co.id";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Splits any delimiter-separated email string and returns valid addresses joined with ", "
+// Returns "" if no valid addresses are found.
+function normalizeToHeader(raw: string): string {
+  return raw
+    .split(/[,;\s\r\n]+/)
+    .map(t => t.trim())
+    .filter(t => EMAIL_RE.test(t))
+    .join(", ");
+}
+
 function appLink(path: string, label: string): string {
   const url = `${APP_URL}/${path}`;
   return `<a href="${url}" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#1e40af;color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600">${label} →</a>`;
@@ -96,9 +108,12 @@ async function sendViaGmail(
   subject: string,
   htmlBody: string
 ): Promise<boolean> {
+  const toHeader = normalizeToHeader(toEmail);
+  if (!toHeader) return false; // skip entirely if no valid address
+
   const emailLines = [
     `From: ${from}`,
-    `To: ${toEmail}`,
+    `To: ${toHeader}`,
     `Subject: ${subject}`,
     "Content-Type: text/html; charset=utf-8",
     "",

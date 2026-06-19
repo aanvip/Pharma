@@ -26,6 +26,10 @@ interface FinanceExpense {
   approved_at: string | null;
   rejection_reason: string | null;
   created_at: string;
+  // PIB Import breakdown columns (non-null only when expense_category = 'pib_import')
+  pib_bm_amount?: number | null;
+  pib_ppn_amount?: number | null;
+  pib_pph_amount?: number | null;
   batches?: { batch_number: string } | null;
   import_containers?: { container_ref: string } | null;
   delivery_challans?: { challan_number: string } | null;
@@ -76,6 +80,15 @@ interface ExpenseManagerProps {
 
 const expenseCategories = [
   {
+    value: 'pib_import',
+    label: 'PIB Import (BM + PPN + PPh)',
+    type: 'import',
+    icon: FileText,
+    description: 'ONE bank payment from the official PIB document covering Import Duty (BM), PPN Import, and PPh 22 Import. Requires breakdown.',
+    requiresContainer: true,
+    group: 'Import Costs'
+  },
+  {
     value: 'duty_customs',
     label: 'Duty & Customs (BM)',
     type: 'import',
@@ -89,7 +102,7 @@ const expenseCategories = [
     label: 'PPN Import',
     type: 'import',
     icon: Building2,
-    description: 'Import VAT - CAPITALIZED to inventory',
+    description: 'Import VAT - posted to PPN Masukan (Input VAT). NOT an expense. NOT in landed cost.',
     requiresContainer: true,
     group: 'Import Costs'
   },
@@ -98,7 +111,7 @@ const expenseCategories = [
     label: 'PPh Import',
     type: 'import',
     icon: Building2,
-    description: 'Import withholding tax - CAPITALIZED to inventory',
+    description: 'Import withholding tax (PPh 22) - posted to Advance Income Tax. NOT an expense. NOT in landed cost.',
     requiresContainer: true,
     group: 'Import Costs'
   },
@@ -340,6 +353,10 @@ export function ExpenseManager({ canManage, initialViewExpenseId, onInitialViewH
     bank_account_id: '',
     payment_reference: '',
     document_urls: [] as string[],
+    // PIB Import breakdown (only used when expense_category = 'pib_import')
+    pib_bm_amount: 0,
+    pib_ppn_amount: 0,
+    pib_pph_amount: 0,
   });
 
   useEffect(() => {
@@ -660,6 +677,24 @@ export function ExpenseManager({ canManage, initialViewExpenseId, onInitialViewH
     try {
       const category = expenseCategories.find(c => c.value === formData.expense_category);
 
+      // PIB Import: validate that the breakdown sums to the payment amount
+      if (formData.expense_category === 'pib_import') {
+        const breakdown = (formData.pib_bm_amount || 0) + (formData.pib_ppn_amount || 0) + (formData.pib_pph_amount || 0);
+        if (Math.abs(breakdown - (formData.amount || 0)) > 1) {
+          alert(
+            `❌ PIB Breakdown Mismatch\n\n` +
+            `BM + PPN + PPh = Rp ${breakdown.toLocaleString('id-ID')}\n` +
+            `Payment Amount = Rp ${(formData.amount || 0).toLocaleString('id-ID')}\n\n` +
+            `The three components must equal the total payment amount.`
+          );
+          return;
+        }
+        if (breakdown === 0) {
+          alert('❌ PIB Import requires a breakdown. Please enter BM, PPN, and/or PPh amounts.');
+          return;
+        }
+      }
+
       // Upload new files first
       const uploadedUrls: string[] = [];
       if (uploadingFiles.length > 0) {
@@ -704,6 +739,7 @@ export function ExpenseManager({ canManage, initialViewExpenseId, onInitialViewH
       const allDocumentUrls = [...formData.document_urls, ...uploadedUrls];
       console.log('Combined document URLs:', allDocumentUrls);
 
+      const isPib = formData.expense_category === 'pib_import';
       const expenseData = {
         expense_category: formData.expense_category,
         expense_type: category?.type || 'admin',
@@ -718,6 +754,10 @@ export function ExpenseManager({ canManage, initialViewExpenseId, onInitialViewH
         payment_reference: formData.payment_reference || null,
         paid_by: 'bank',
         document_urls: allDocumentUrls.length > 0 ? allDocumentUrls : null,
+        // PIB breakdown — only persisted for pib_import category
+        pib_bm_amount:  isPib ? (formData.pib_bm_amount  || 0) : null,
+        pib_ppn_amount: isPib ? (formData.pib_ppn_amount || 0) : null,
+        pib_pph_amount: isPib ? (formData.pib_pph_amount || 0) : null,
       };
 
       console.log('=== EXPENSE DATA TO SAVE ===');
@@ -985,6 +1025,9 @@ export function ExpenseManager({ canManage, initialViewExpenseId, onInitialViewH
       bank_account_id: effectiveBankAccountId,
       payment_reference: expense.payment_reference || '',
       document_urls: expense.document_urls || [],
+      pib_bm_amount:  expense.pib_bm_amount  ?? 0,
+      pib_ppn_amount: expense.pib_ppn_amount ?? 0,
+      pib_pph_amount: expense.pib_pph_amount ?? 0,
     });
 
     // Set selected bank transaction if expense is already linked
@@ -1139,6 +1182,9 @@ export function ExpenseManager({ canManage, initialViewExpenseId, onInitialViewH
       bank_account_id: '',
       payment_reference: '',
       document_urls: [],
+      pib_bm_amount: 0,
+      pib_ppn_amount: 0,
+      pib_pph_amount: 0,
     });
   };
 
@@ -1822,6 +1868,109 @@ export function ExpenseManager({ canManage, initialViewExpenseId, onInitialViewH
                 </p>
               </div>
             )}
+
+            {/* ── PIB Import Breakdown ─────────────────────────────────────────── */}
+            {formData.expense_category === 'pib_import' && (() => {
+              const pibSum = (formData.pib_bm_amount || 0) + (formData.pib_ppn_amount || 0) + (formData.pib_pph_amount || 0);
+              const pibOk  = Math.abs(pibSum - (formData.amount || 0)) < 1 && pibSum > 0;
+              return (
+                <div className="bg-amber-50 border-2 border-amber-400 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <FileText className="w-4 h-4 text-amber-700" />
+                    <h3 className="text-sm font-bold text-amber-900">PIB Tax Breakdown — Required</h3>
+                    <span className="ml-auto text-xs text-amber-700">Must sum to payment amount</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-amber-900 mb-1">
+                        Import Duty — BM <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={formData.pib_bm_amount || ''}
+                        onChange={e => setFormData({ ...formData, pib_bm_amount: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                        placeholder="0"
+                      />
+                      <p className="text-[10px] text-amber-700 mt-0.5">Goes to landed cost → inventory</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-amber-900 mb-1">
+                        PPN Import <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={formData.pib_ppn_amount || ''}
+                        onChange={e => setFormData({ ...formData, pib_ppn_amount: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                        placeholder="0"
+                      />
+                      <p className="text-[10px] text-amber-700 mt-0.5">Input VAT (PPN Masukan 1150)</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-amber-900 mb-1">
+                        PPh 22 Import <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={formData.pib_pph_amount || ''}
+                        onChange={e => setFormData({ ...formData, pib_pph_amount: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                        placeholder="0"
+                      />
+                      <p className="text-[10px] text-amber-700 mt-0.5">Advance Income Tax (PPh 22 Prepaid 1155)</p>
+                    </div>
+                  </div>
+
+                  {/* Running total validation */}
+                  <div className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm font-medium ${
+                    pibOk
+                      ? 'bg-green-50 border-green-300 text-green-800'
+                      : pibSum > 0
+                      ? 'bg-red-50 border-red-300 text-red-800'
+                      : 'bg-amber-100 border-amber-300 text-amber-800'
+                  }`}>
+                    <span>
+                      BM + PPN + PPh = Rp {pibSum.toLocaleString('id-ID')}
+                    </span>
+                    <span>
+                      {pibOk
+                        ? '✓ Matches payment amount'
+                        : formData.amount > 0
+                        ? `Difference: Rp ${Math.abs(pibSum - formData.amount).toLocaleString('id-ID')}`
+                        : 'Enter payment amount above'}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-amber-800">
+                    <div className="bg-white border border-amber-200 rounded p-1.5 text-center">
+                      <div className="font-bold">BM → Dr 5200</div>
+                      <div>Import Duty Expense</div>
+                      <div className="text-green-700 font-semibold">Landed Cost ✓</div>
+                    </div>
+                    <div className="bg-white border border-amber-200 rounded p-1.5 text-center">
+                      <div className="font-bold">PPN → Dr 1150</div>
+                      <div>PPN Masukan</div>
+                      <div className="text-blue-700 font-semibold">Input VAT (claimable)</div>
+                    </div>
+                    <div className="bg-white border border-amber-200 rounded p-1.5 text-center">
+                      <div className="font-bold">PPh → Dr 1155</div>
+                      <div>PPh 22 Dibayar Dimuka</div>
+                      <div className="text-purple-700 font-semibold">Advance Tax Asset</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {requiresDC && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">

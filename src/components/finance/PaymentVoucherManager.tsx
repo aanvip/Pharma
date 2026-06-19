@@ -74,6 +74,18 @@ interface PaymentVoucherManagerProps {
   onViewInvoice?: (invoiceId: string) => void;
 }
 
+interface PaymentAllocationRow {
+  payment_voucher_id: string | null;
+  allocated_currency: string | null;
+  purchase_invoices?: { id: string; invoice_number: string } | null;
+}
+
+interface ViewAllocationRow {
+  allocated_amount: number | null;
+  allocated_currency: string | null;
+  purchase_invoices?: { id: string; invoice_number: string; invoice_date: string } | null;
+}
+
 function fmt(amount: number, currency: string) {
   if (currency === 'USD') {
     return `US$ ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -184,7 +196,7 @@ export function PaymentVoucherManager({ canManage, prefillInvoice, onPrefillCons
           .from('voucher_allocations')
           .select('payment_voucher_id, allocated_currency, purchase_invoices(id, invoice_number)')
           .in('payment_voucher_id', voucherIds);
-        for (const a of (allocs as any[]) || []) {
+        for (const a of (allocs || []) as PaymentAllocationRow[]) {
           if (!a.payment_voucher_id) continue;
           if (!allocCcyMap[a.payment_voucher_id]) {
             allocCcyMap[a.payment_voucher_id] = a.allocated_currency || '';
@@ -347,7 +359,7 @@ export function PaymentVoucherManager({ canManage, prefillInvoice, onPrefillCons
       .select('allocated_amount, allocated_currency, purchase_invoices(id, invoice_number, invoice_date)')
       .eq('payment_voucher_id', v.id);
     setViewAllocations(
-      (data || []).map((a: any) => ({
+      ((data || []) as ViewAllocationRow[]).map((a) => ({
         invoice_id: a.purchase_invoices?.id || '',
         invoice_number: a.purchase_invoices?.invoice_number || '—',
         invoice_date: a.purchase_invoices?.invoice_date || '',
@@ -360,28 +372,11 @@ export function PaymentVoucherManager({ canManage, prefillInvoice, onPrefillCons
   const handleDelete = async (v: PaymentVoucher) => {
     if (!confirm(`Delete payment ${v.voucher_number}? This will reverse all invoice allocations.`)) return;
     try {
-      // Reverse paid amounts
-      const { data: allocs } = await supabase
-        .from('voucher_allocations')
-        .select('purchase_invoice_id, allocated_amount')
-        .eq('payment_voucher_id', v.id);
-      for (const a of allocs || []) {
-        const { data: inv } = await supabase
-          .from('purchase_invoices')
-          .select('paid_amount, total_amount')
-          .eq('id', a.purchase_invoice_id)
-          .maybeSingle();
-        if (inv) {
-          const newPaid = Math.max(0, (inv.paid_amount || 0) - a.allocated_amount);
-          await supabase.from('purchase_invoices').update({
-            paid_amount: newPaid,
-            status: newPaid <= 0 ? 'pending' : newPaid >= inv.total_amount ? 'paid' : 'partial',
-          }).eq('id', a.purchase_invoice_id);
-        }
-      }
-      await supabase.from('voucher_allocations').delete().eq('payment_voucher_id', v.id);
-      const { error } = await supabase.from('payment_vouchers').delete().eq('id', v.id);
+      const { error } = await supabase.rpc('delete_payment_voucher_with_allocations', {
+        p_voucher_id: v.id,
+      });
       if (error) throw error;
+
       loadVouchers();
     } catch (err) {
       alert('Delete failed: ' + (err instanceof Error ? err.message : String(err)));
@@ -410,54 +405,31 @@ export function PaymentVoucherManager({ canManage, prefillInvoice, onPrefillCons
         bank_charge: formData.bank_charge || 0,
       };
 
-      let voucherId: string;
-
-      if (editingVoucher) {
-        const { error } = await supabase.from('payment_vouchers').update(payload).eq('id', editingVoucher.id);
-        if (error) throw error;
-        voucherId = editingVoucher.id;
-        // Reverse old allocations
-        const { data: oldAllocs } = await supabase
-          .from('voucher_allocations')
-          .select('purchase_invoice_id, allocated_amount')
-          .eq('payment_voucher_id', voucherId);
-        for (const a of oldAllocs || []) {
-          const { data: inv } = await supabase.from('purchase_invoices').select('paid_amount, total_amount').eq('id', a.purchase_invoice_id).maybeSingle();
-          if (inv) {
-            const newPaid = Math.max(0, (inv.paid_amount || 0) - a.allocated_amount);
-            await supabase.from('purchase_invoices').update({ paid_amount: newPaid, status: newPaid <= 0 ? 'pending' : newPaid >= inv.total_amount ? 'paid' : 'partial' }).eq('id', a.purchase_invoice_id);
-          }
-        }
-        await supabase.from('voucher_allocations').delete().eq('payment_voucher_id', voucherId);
-      } else {
-        const voucherNumber = await generateVoucherNumber(formData.voucher_date);
-        const { data: voucher, error } = await supabase
-          .from('payment_vouchers')
-          .insert([{ ...payload, voucher_number: voucherNumber, created_by: user.id }])
-          .select()
-          .single();
-        if (error) throw error;
-        voucherId = voucher!.id;
-      }
-
-      // Add allocations
-      for (const alloc of allocations) {
-        await supabase.from('voucher_allocations').insert({
-          voucher_type: 'payment',
-          payment_voucher_id: voucherId,
-          purchase_invoice_id: alloc.invoiceId,
-          allocated_amount: alloc.amount,
-          allocated_currency: alloc.currency,
-        });
-        const invoice = pendingInvoices.find(i => i.id === alloc.invoiceId);
-        if (invoice) {
-          const newPaid = (invoice.paid_amount || 0) + alloc.amount;
-          await supabase.from('purchase_invoices').update({
-            paid_amount: newPaid,
-            status: newPaid >= invoice.total_amount ? 'paid' : 'partial',
-          }).eq('id', alloc.invoiceId);
-        }
-      }
+      const voucherNumber = editingVoucher ? editingVoucher.voucher_number : await generateVoucherNumber(formData.voucher_date);
+      const { error: saveError } = await supabase.rpc('save_payment_voucher_with_allocations', {
+        p_voucher_id: editingVoucher?.id || null,
+        p_voucher_number: voucherNumber,
+        p_voucher_date: payload.voucher_date,
+        p_supplier_id: payload.supplier_id,
+        p_payment_method: payload.payment_method,
+        p_bank_account_id: payload.bank_account_id,
+        p_reference_number: payload.reference_number,
+        p_amount: payload.amount,
+        p_pph_amount: payload.pph_amount,
+        p_pph_code_id: payload.pph_code_id,
+        p_description: payload.description,
+        p_payment_currency: payload.payment_currency,
+        p_exchange_rate: payload.exchange_rate,
+        p_bank_amount: payload.bank_amount,
+        p_bank_charge: payload.bank_charge,
+        p_created_by: user.id,
+        p_allocations: allocations.map(alloc => ({
+          invoice_id: alloc.invoiceId,
+          amount: alloc.amount,
+          currency: alloc.currency,
+        })),
+      });
+      if (saveError) throw saveError;
 
       setModalOpen(false);
       resetForm();

@@ -7,11 +7,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Bulk-Email-Worker-Secret",
 };
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function parseEmails(raw: string | null | undefined): string[] {
-  return String(raw || "")
-    .split(/[;,]/)
-    .map(email => email.trim())
-    .filter(Boolean);
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const token of String(raw || "").split(/[,;\s\r\n]+/)) {
+    const email = token.trim();
+    if (email && EMAIL_RE.test(email) && !seen.has(email)) {
+      seen.add(email);
+      result.push(email);
+    }
+  }
+  return result;
 }
 
 function applyVariables(value: string, contact: Record<string, unknown>): string {
