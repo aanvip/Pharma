@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
   Mail, CheckCircle, XCircle, Clock, ChevronDown, ChevronRight,
-  AlertTriangle, Paperclip, RefreshCw
+  AlertTriangle, Paperclip, RefreshCw, PauseCircle, PlayCircle
 } from 'lucide-react';
 import { openGmailReconnectPopup } from './gmailReconnect';
 
@@ -13,11 +13,13 @@ interface Campaign {
   total_recipients: number;
   sent_count: number;
   failed_count: number;
-  status: 'in_progress' | 'completed' | 'partial' | 'failed';
+  status: 'in_progress' | 'completed' | 'partial' | 'failed' | 'paused' | 'cancelled';
   has_attachments: boolean;
   started_at: string;
   completed_at: string | null;
   created_by: string;
+  worker_lock_until: string | null;
+  next_run_at: string | null;
   user_profiles?: { full_name: string | null };
 }
 
@@ -26,7 +28,7 @@ interface Recipient {
   contact_id: string | null;
   company_name: string;
   email: string;
-  status: 'pending' | 'sending' | 'sent' | 'failed';
+  status: 'pending' | 'sending' | 'sent' | 'failed' | 'cancelled';
   error_message: string | null;
   sent_at: string | null;
 }
@@ -64,9 +66,20 @@ async function getFreshAccessToken(): Promise<string> {
   return session.access_token;
 }
 
+// A campaign shows as stale when: status is in_progress but the worker lock has expired
+// AND next_run_at is in the past (with 90s grace to allow for scheduling jitter).
+function isStaleInProgress(c: Campaign): boolean {
+  if (c.status !== 'in_progress') return false;
+  const now = Date.now();
+  const lockExpired = !c.worker_lock_until || new Date(c.worker_lock_until).getTime() < now;
+  const nextRunPast = !c.next_run_at || new Date(c.next_run_at).getTime() < now - 90_000;
+  return lockExpired && nextRunPast;
+}
+
 export function DeliveryLog() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [recipients, setRecipients] = useState<Record<string, Recipient[]>>({});
   const [recipientsLoading, setRecipientsLoading] = useState<string | null>(null);
@@ -74,6 +87,8 @@ export function DeliveryLog() {
   const [retryingRecipients, setRetryingRecipients] = useState<Record<string, boolean>>({});
   const [retryingCampaigns, setRetryingCampaigns] = useState<Record<string, boolean>>({});
   const [retryResult, setRetryResult] = useState<Record<string, { type: 'success' | 'error'; message: string }>>({});
+  const [stoppingCampaigns, setStoppingCampaigns] = useState<Record<string, boolean>>({});
+  const [resumingCampaigns, setResumingCampaigns] = useState<Record<string, boolean>>({});
   const [queueStats, setQueueStats] = useState({ pending: 0, sent: 0, failed: 0 });
 
   useEffect(() => {
@@ -102,6 +117,7 @@ export function DeliveryLog() {
       .order('started_at', { ascending: false })
       .limit(100);
     setCampaigns(data || []);
+    setLastRefreshed(new Date());
 
     const { data: recipientsSummary } = await supabase
       .from('bulk_email_recipients')
@@ -118,6 +134,17 @@ export function DeliveryLog() {
     setLoading(false);
   };
 
+  const handleRefresh = async () => {
+    await loadCampaigns();
+    if (!expandedId) return;
+    const { data } = await supabase
+      .from('bulk_email_recipients')
+      .select('id, contact_id, company_name, email, status, error_message, sent_at')
+      .eq('campaign_id', expandedId)
+      .order('status', { ascending: true });
+    setRecipients(prev => ({ ...prev, [expandedId]: data || [] }));
+  };
+
   const toggleExpand = async (id: string) => {
     if (expandedId === id) {
       setExpandedId(null);
@@ -131,9 +158,101 @@ export function DeliveryLog() {
       .from('bulk_email_recipients')
       .select('id, contact_id, company_name, email, status, error_message, sent_at')
       .eq('campaign_id', id)
-      .order('status', { ascending: true }); // failed first
+      .order('status', { ascending: true });
     setRecipients(prev => ({ ...prev, [id]: data || [] }));
     setRecipientsLoading(null);
+  };
+
+  const handlePauseCampaign = async (campaignId: string) => {
+    if (!window.confirm('Pause this campaign? Pending emails will not be sent until resumed.')) return;
+
+    setStoppingCampaigns(prev => ({ ...prev, [campaignId]: true }));
+    try {
+      const { error } = await supabase
+        .from('bulk_email_campaigns')
+        .update({
+          status: 'paused',
+          worker_lock_until: null,
+          worker_lock_id: null,
+        })
+        .eq('id', campaignId);
+      if (error) throw error;
+
+      setCampaigns(prev => prev.map(c => c.id === campaignId
+        ? { ...c, status: 'paused', worker_lock_until: null }
+        : c
+      ));
+    } catch (err: any) {
+      alert(`Failed to pause campaign: ${err.message}`);
+    } finally {
+      setStoppingCampaigns(prev => ({ ...prev, [campaignId]: false }));
+    }
+  };
+
+  const handleResumeCampaign = async (campaignId: string) => {
+    setResumingCampaigns(prev => ({ ...prev, [campaignId]: true }));
+    try {
+      // Reset stuck 'sending' and 'failed' recipients back to pending.
+      // Never touch 'sent' rows.
+      await supabase
+        .from('bulk_email_recipients')
+        .update({ status: 'pending', error_message: null, error_code: null, completed_at: null })
+        .eq('campaign_id', campaignId)
+        .in('status', ['sending', 'failed']);
+
+      const { error: campaignErr } = await supabase
+        .from('bulk_email_campaigns')
+        .update({
+          status: 'in_progress',
+          completed_at: null,
+          next_run_at: new Date().toISOString(),
+          worker_lock_until: null,
+          worker_lock_id: null,
+        })
+        .eq('id', campaignId);
+      if (campaignErr) throw campaignErr;
+
+      // Wake the worker. With verify_jwt=false on this function, a JWT is still
+      // accepted and is the correct auth path for browser-initiated calls.
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const accessToken = await getFreshAccessToken();
+      const response = await fetch(`${supabaseUrl}/functions/v1/process-bulk-email-campaign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ campaignId }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || `Worker start failed: HTTP ${response.status}`);
+      }
+
+      await loadCampaigns();
+      if (expandedId === campaignId) {
+        const { data } = await supabase
+          .from('bulk_email_recipients')
+          .select('id, contact_id, company_name, email, status, error_message, sent_at')
+          .eq('campaign_id', campaignId)
+          .order('status', { ascending: true });
+        setRecipients(prev => ({ ...prev, [campaignId]: data || [] }));
+      }
+    } catch (err: any) {
+      const errMsg = err?.message || 'Failed to resume campaign.';
+      const needsReauth = errMsg.includes('TOKEN_REAUTH_REQUIRED')
+        || errMsg.includes('Failed to refresh access token')
+        || errMsg.includes('invalid_grant')
+        || errMsg.includes('GMAIL_TOKEN_INVALID');
+      if (needsReauth) {
+        const shouldReconnect = window.confirm('Your Gmail login has expired. Reconnect Gmail now?');
+        if (shouldReconnect) openGmailReconnectPopup();
+      } else {
+        alert(`Failed to resume campaign: ${errMsg}`);
+      }
+    } finally {
+      setResumingCampaigns(prev => ({ ...prev, [campaignId]: false }));
+    }
   };
 
   const filteredCampaigns = campaigns.filter(c => {
@@ -143,18 +262,35 @@ export function DeliveryLog() {
     return true;
   });
 
-  const statusBadge = (status: Campaign['status'], failed: number) => {
-    if (status === 'completed') return (
+  const statusBadge = (c: Campaign) => {
+    if (c.status === 'completed') return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
         <CheckCircle className="w-3 h-3" /> All sent
       </span>
     );
-    if (status === 'in_progress') return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-        <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /> Sending…
+    if (c.status === 'paused') return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+        <PauseCircle className="w-3 h-3" /> Paused
       </span>
     );
-    if (status === 'failed') return (
+    if (c.status === 'cancelled') return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+        <XCircle className="w-3 h-3" /> Cancelled
+      </span>
+    );
+    if (c.status === 'in_progress') {
+      if (isStaleInProgress(c)) return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+          <AlertTriangle className="w-3 h-3" /> Resume needed
+        </span>
+      );
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+          <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /> Sending…
+        </span>
+      );
+    }
+    if (c.status === 'failed') return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
         <XCircle className="w-3 h-3" /> All failed
       </span>
@@ -162,7 +298,7 @@ export function DeliveryLog() {
     // partial
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-        <AlertTriangle className="w-3 h-3" /> {failed} failed
+        <AlertTriangle className="w-3 h-3" /> {c.failed_count} failed
       </span>
     );
   };
@@ -170,6 +306,7 @@ export function DeliveryLog() {
   const recipientStatusIcon = (status: Recipient['status']) => {
     if (status === 'sent') return <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />;
     if (status === 'failed') return <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />;
+    if (status === 'cancelled') return <XCircle className="w-4 h-4 text-gray-400 flex-shrink-0" />;
     return <Clock className="w-4 h-4 text-gray-300 flex-shrink-0" />;
   };
 
@@ -178,15 +315,11 @@ export function DeliveryLog() {
       r.status === 'failed' && (!recipientIds || recipientIds.includes(r.id))
     );
 
-    if (targetRecipients.length === 0) {
-      return;
-    }
+    if (targetRecipients.length === 0) return;
 
     if (recipientIds) {
       const next = { ...retryingRecipients };
-      targetRecipients.forEach(r => {
-        next[r.id] = true;
-      });
+      targetRecipients.forEach(r => { next[r.id] = true; });
       setRetryingRecipients(next);
     } else {
       setRetryingCampaigns(prev => ({ ...prev, [campaignId]: true }));
@@ -205,9 +338,6 @@ export function DeliveryLog() {
 
       if (campaignErr || !campaign) throw new Error('Campaign metadata not found');
 
-      // If email_body was not persisted (legacy campaign), fall back to the
-      // template that was selected at send time and patch the record so future
-      // retries don't need to do this again.
       if (!campaign.email_body && campaign.template_id) {
         const { data: tpl } = await supabase
           .from('crm_email_templates')
@@ -224,6 +354,7 @@ export function DeliveryLog() {
       }
 
       if (!campaign.email_body) throw new Error('Campaign body is missing — the original email body was not saved and no template is linked. Please create a new campaign.');
+
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const retryIds = targetRecipients.map(r => r.id);
       const { error: resetErr } = await supabase
@@ -267,21 +398,21 @@ export function DeliveryLog() {
         .select('id, contact_id, company_name, email, status, error_message, sent_at')
         .eq('campaign_id', campaignId);
 
-	      const totalSent = (refreshedRows || []).filter(r => r.status === 'sent').length;
-	      const totalFailed = (refreshedRows || []).filter(r => r.status === 'failed').length;
+      const totalSent = (refreshedRows || []).filter(r => r.status === 'sent').length;
+      const totalFailed = (refreshedRows || []).filter(r => r.status === 'failed').length;
 
-	      setRecipients(prev => ({ ...prev, [campaignId]: refreshedRows || [] }));
-	      setCampaigns(prev => prev.map(c => c.id === campaignId
-	        ? { ...c, sent_count: totalSent, failed_count: totalFailed, status: 'in_progress' }
-	        : c
-	      ));
-	      setRetryResult(prev => ({
-	        ...prev,
-	        [campaignId]: {
-	          type: 'success',
-	          message: `Retry queued for ${targetRecipients.length} failed recipient${targetRecipients.length === 1 ? '' : 's'}.`,
-	        },
-	      }));
+      setRecipients(prev => ({ ...prev, [campaignId]: refreshedRows || [] }));
+      setCampaigns(prev => prev.map(c => c.id === campaignId
+        ? { ...c, sent_count: totalSent, failed_count: totalFailed, status: 'in_progress' }
+        : c
+      ));
+      setRetryResult(prev => ({
+        ...prev,
+        [campaignId]: {
+          type: 'success',
+          message: `Retry queued for ${targetRecipients.length} failed recipient${targetRecipients.length === 1 ? '' : 's'}.`,
+        },
+      }));
     } catch (err: any) {
       const errMsg = err?.message || 'Failed to retry recipients.';
       const needsReauth = errMsg.includes('TOKEN_REAUTH_REQUIRED')
@@ -291,25 +422,18 @@ export function DeliveryLog() {
 
       if (needsReauth) {
         const shouldReconnect = window.confirm('Your Gmail login has expired. Reconnect Gmail now?');
-        if (shouldReconnect) {
-          openGmailReconnectPopup();
-        }
+        if (shouldReconnect) openGmailReconnectPopup();
       }
 
       setRetryResult(prev => ({
         ...prev,
-        [campaignId]: {
-          type: 'error',
-          message: errMsg,
-        },
+        [campaignId]: { type: 'error', message: errMsg },
       }));
     } finally {
       if (recipientIds) {
         setRetryingRecipients(prev => {
           const next = { ...prev };
-          targetRecipients.forEach(r => {
-            delete next[r.id];
-          });
+          targetRecipients.forEach(r => { delete next[r.id]; });
           return next;
         });
       } else {
@@ -317,6 +441,9 @@ export function DeliveryLog() {
       }
     }
   };
+
+  const canPause = (c: Campaign) => c.status === 'in_progress' && !isStaleInProgress(c);
+  const canResume = (c: Campaign) => c.status === 'paused' || isStaleInProgress(c);
 
   return (
     <div className="space-y-4">
@@ -337,13 +464,20 @@ export function DeliveryLog() {
               </button>
             ))}
           </div>
-          <button
-            onClick={loadCampaigns}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
-            title="Refresh"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            {lastRefreshed && (
+              <span className="text-xs text-gray-400 hidden sm:inline">
+                {lastRefreshed.toLocaleTimeString('id-ID')}
+              </span>
+            )}
+            <button
+              onClick={handleRefresh}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
+              title="Refresh"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -377,52 +511,91 @@ export function DeliveryLog() {
         <div className="space-y-2">
           {filteredCampaigns.map(c => (
             <div key={c.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-              {/* Campaign row */}
-              <button
-                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition text-left"
-                onClick={() => toggleExpand(c.id)}
-              >
-                <div className="flex-shrink-0 text-gray-400">
-                  {expandedId === c.id
-                    ? <ChevronDown className="w-4 h-4" />
-                    : <ChevronRight className="w-4 h-4" />
-                  }
+              {/* Campaign row — split into clickable expand area + action buttons */}
+              <div className="flex items-stretch">
+                <div
+                  className="flex-1 flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition cursor-pointer text-left"
+                  onClick={() => toggleExpand(c.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => e.key === 'Enter' && toggleExpand(c.id)}
+                >
+                  <div className="flex-shrink-0 text-gray-400">
+                    {expandedId === c.id
+                      ? <ChevronDown className="w-4 h-4" />
+                      : <ChevronRight className="w-4 h-4" />
+                    }
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-gray-900 truncate">{c.subject}</span>
+                      {c.has_attachments && (
+                        <span className="flex items-center gap-0.5 text-xs text-gray-400">
+                          <Paperclip className="w-3 h-3" /> attachment
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
+                      <span>{formatDateTime(c.started_at)}</span>
+                      {c.user_profiles?.full_name && <span>by {c.user_profiles.full_name}</span>}
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="flex items-center gap-4 flex-shrink-0">
+                    <div className="text-center hidden sm:block">
+                      <div className="text-sm font-semibold text-gray-900">{c.total_recipients}</div>
+                      <div className="text-xs text-gray-400">total</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm font-semibold text-green-600">{c.sent_count}</div>
+                      <div className="text-xs text-gray-400">sent</div>
+                    </div>
+                    {c.failed_count > 0 && (
+                      <div className="text-center">
+                        <div className="text-sm font-semibold text-red-600">{c.failed_count}</div>
+                        <div className="text-xs text-gray-400">failed</div>
+                      </div>
+                    )}
+                    {statusBadge(c)}
+                  </div>
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-gray-900 truncate">{c.subject}</span>
-                    {c.has_attachments && (
-                      <span className="flex items-center gap-0.5 text-xs text-gray-400">
-                        <Paperclip className="w-3 h-3" /> attachment
-                      </span>
+                {/* Pause / Resume action buttons — outside the expand div to avoid nesting issues */}
+                {(canPause(c) || canResume(c)) && (
+                  <div className="flex items-center px-3 border-l border-gray-100 gap-1.5 flex-shrink-0">
+                    {canPause(c) && (
+                      <button
+                        onClick={() => handlePauseCampaign(c.id)}
+                        disabled={stoppingCampaigns[c.id]}
+                        title="Pause campaign"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-yellow-300 text-yellow-700 hover:bg-yellow-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      >
+                        {stoppingCampaigns[c.id]
+                          ? <div className="w-3 h-3 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+                          : <PauseCircle className="w-3.5 h-3.5" />
+                        }
+                        <span className="hidden sm:inline">Pause</span>
+                      </button>
+                    )}
+                    {canResume(c) && (
+                      <button
+                        onClick={() => handleResumeCampaign(c.id)}
+                        disabled={resumingCampaigns[c.id]}
+                        title="Resume campaign"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      >
+                        {resumingCampaigns[c.id]
+                          ? <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                          : <PlayCircle className="w-3.5 h-3.5" />
+                        }
+                        <span className="hidden sm:inline">Resume</span>
+                      </button>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
-                    <span>{formatDateTime(c.started_at)}</span>
-                    {c.user_profiles?.full_name && <span>by {c.user_profiles.full_name}</span>}
-                  </div>
-                </div>
-
-                {/* Stats */}
-                <div className="flex items-center gap-4 flex-shrink-0">
-                  <div className="text-center hidden sm:block">
-                    <div className="text-sm font-semibold text-gray-900">{c.total_recipients}</div>
-                    <div className="text-xs text-gray-400">total</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm font-semibold text-green-600">{c.sent_count}</div>
-                    <div className="text-xs text-gray-400">sent</div>
-                  </div>
-                  {c.failed_count > 0 && (
-                    <div className="text-center">
-                      <div className="text-sm font-semibold text-red-600">{c.failed_count}</div>
-                      <div className="text-xs text-gray-400">failed</div>
-                    </div>
-                  )}
-                  {statusBadge(c.status, c.failed_count)}
-                </div>
-              </button>
+                )}
+              </div>
 
               {/* Recipients list */}
               {expandedId === c.id && (
@@ -490,7 +663,7 @@ export function DeliveryLog() {
                               <span className="text-xs text-gray-400 ml-2">{r.email}</span>
                             </div>
                             <div className="text-xs text-gray-400 flex-shrink-0">
-                              {r.sent_at ? formatDateTime(r.sent_at) : r.status === 'pending' ? 'Pending' : ''}
+                              {r.sent_at ? formatDateTime(r.sent_at) : r.status === 'pending' ? 'Pending' : r.status === 'cancelled' ? 'Cancelled' : ''}
                             </div>
                           </div>
                         ))}
