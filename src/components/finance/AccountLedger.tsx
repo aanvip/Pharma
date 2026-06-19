@@ -296,11 +296,14 @@ export function AccountLedger() {
         .map(r => r.reference_number!.substring(4))
     ));
 
-    // For 'petty_cash' rows, reference_number is empty in the trigger, but
-    // journal_entries.reference_id stores the petty_cash_transactions.id —
-    // we need to fetch that separately.
+    // For 'petty_cash' rows: reference_number now holds 'PC-YYYYMM-NNN' (after
+    // migration + trigger fix). For older entries where reference_number is still
+    // NULL, fall back to the reference_id → petty_cash_transactions lookup.
     const pettyEntryIds = Array.from(new Set(
-      rows.filter(r => r.source_module === 'petty_cash').map(r => r.journal_entry_id).filter(Boolean)
+      rows
+        .filter(r => r.source_module === 'petty_cash' && !r.reference_number?.startsWith('PC-'))
+        .map(r => r.journal_entry_id)
+        .filter(Boolean)
     ));
 
     const [expMap, pettyRefMap] = await Promise.all([
@@ -330,7 +333,10 @@ export function AccountLedger() {
       if (r.source_module === 'expenses' && r.reference_number?.startsWith('EXP-')) {
         canonical = expMap[r.reference_number.substring(4)];
       } else if (r.source_module === 'petty_cash') {
-        canonical = pettyRefMap[r.journal_entry_id];
+        // Use reference_number directly when the backfill/trigger has set it (PC-YYYYMM-NNN)
+        canonical = r.reference_number?.startsWith('PC-')
+          ? r.reference_number
+          : pettyRefMap[r.journal_entry_id];
       } else if (r.reference_number) {
         // fund_transfers / receipt / payment / purchase / sales — reference_number
         // already holds the user-facing voucher number (RV…, PV…, INV…, etc).
