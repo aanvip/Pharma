@@ -514,7 +514,21 @@ export function Batches() {
   };
 
   const handleDelete = async (id: string) => {
+    const role = profile?.role;
+    const isAdmin = role === 'admin' || role === 'accounts';
+    const isWarehouse = role === 'warehouse';
+
+    if (!isAdmin && !isWarehouse) {
+      showToast({ type: 'error', title: 'Access Denied', message: 'You do not have permission to delete or archive batches.' });
+      return;
+    }
+
+    const batch = batches.find(b => b.id === id);
+    const batchLabel = batch?.batch_number ? `Batch ${batch.batch_number}` : 'This batch';
+
     try {
+      // --- Common link checks (block all roles) ---
+
       const { data: salesItems } = await supabase
         .from('sales_invoice_items')
         .select('id, sales_invoices(invoice_number)')
@@ -522,7 +536,8 @@ export function Batches() {
         .limit(1);
 
       if (salesItems && salesItems.length > 0) {
-        showToast({ type: 'error', title: 'Error', message: 'Cannot delete this batch. It has been used in sales invoices. Please delete the related invoices first or contact your administrator.' });
+        const inv = (salesItems[0] as any).sales_invoices?.invoice_number;
+        showToast({ type: 'error', title: 'Cannot Delete', message: `${batchLabel} is linked to invoice${inv ? ` ${inv}` : ''}. Delete the invoice first or contact your administrator.` });
         return;
       }
 
@@ -533,46 +548,116 @@ export function Batches() {
         .limit(1);
 
       if (challanItems && challanItems.length > 0) {
-        showToast({ type: 'error', title: 'Error', message: 'Cannot delete this batch. It has been used in delivery challans. Please delete the related delivery challans first.' });
+        showToast({ type: 'error', title: 'Cannot Delete', message: `${batchLabel} is linked to a delivery challan. Delete the challan first.` });
         return;
       }
 
-      if (!await showConfirm({ title: 'Confirm', message: 'Are you sure you want to delete this batch? This will permanently remove all related data.', variant: 'danger', confirmLabel: 'Delete' })) return;
+      const { data: activeReservations } = await supabase
+        .from('stock_reservations')
+        .select('id, sales_orders(so_number)')
+        .eq('batch_id', id)
+        .eq('is_released', false)
+        .limit(1);
 
-      const { error: docsError } = await supabase
-        .from('batch_documents')
-        .delete()
-        .eq('batch_id', id);
+      if (activeReservations && activeReservations.length > 0) {
+        const soNum = (activeReservations[0] as any).sales_orders?.so_number;
+        showToast({ type: 'error', title: 'Cannot Delete', message: `${batchLabel} has an active stock reservation${soNum ? ` for SO ${soNum}` : ''}. Release the reservation first.` });
+        return;
+      }
 
+      // --- Warehouse: archive only, never hard delete ---
+      if (isWarehouse) {
+        if (batch && batch.current_stock < batch.import_quantity) {
+          showToast({
+            type: 'error', title: 'Cannot Archive',
+            message: `${batchLabel} has had stock consumed (imported: ${batch.import_quantity}, remaining: ${batch.current_stock}). Contact an admin to archive.`,
+          });
+          return;
+        }
+
+        const confirmed = await showConfirm({
+          title: 'Archive Batch',
+          message: `Archive ${batchLabel}? It will be hidden from the active list. All stock history and records are preserved.`,
+          variant: 'warning',
+          confirmLabel: 'Archive',
+        });
+        if (!confirmed) return;
+
+        const { error: archiveError } = await supabase
+          .from('batches')
+          .update({ is_active: false })
+          .eq('id', id);
+
+        if (archiveError) {
+          console.error('[Batch archive] DB error:', archiveError);
+          showToast({ type: 'error', title: 'Archive Failed', message: archiveError.message || 'Archive failed. Check your permissions.' });
+          return;
+        }
+
+        // Verify the row was actually updated (RLS can silently affect 0 rows)
+        const { data: check } = await supabase
+          .from('batches')
+          .select('id, is_active')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (check && check.is_active === true) {
+          console.error('[Batch archive] Silently failed — row still active:', id);
+          showToast({ type: 'error', title: 'Archive Failed', message: 'Archive not allowed for your role. Contact an administrator.' });
+          return;
+        }
+
+        showToast({ type: 'success', title: 'Archived', message: `${batchLabel} archived. Toggle "Show Archived" to view it.` });
+        await loadBatches();
+        return;
+      }
+
+      // --- Admin / Accounts: hard delete — only if no stock was consumed ---
+      if (batch && batch.current_stock < batch.import_quantity) {
+        showToast({
+          type: 'error', title: 'Cannot Delete',
+          message: `${batchLabel} has had stock consumed (imported: ${batch.import_quantity}, remaining: ${batch.current_stock}). Use the Archive button instead.`,
+        });
+        return;
+      }
+
+      const confirmed = await showConfirm({
+        title: 'Delete Batch',
+        message: `Permanently delete ${batchLabel}? This removes its documents and purchase transaction. This cannot be undone.`,
+        variant: 'danger',
+        confirmLabel: 'Delete Permanently',
+      });
+      if (!confirmed) return;
+
+      const { error: docsError } = await supabase.from('batch_documents').delete().eq('batch_id', id);
       if (docsError) throw docsError;
 
-      const { error: txError } = await supabase
-        .from('inventory_transactions')
-        .delete()
-        .eq('batch_id', id);
-
+      const { error: txError } = await supabase.from('inventory_transactions').delete().eq('batch_id', id);
       if (txError) throw txError;
 
-      const { error: expensesError } = await supabase
-        .from('finance_expenses')
-        .delete()
-        .eq('batch_id', id);
-
+      const { error: expensesError } = await supabase.from('finance_expenses').delete().eq('batch_id', id);
       if (expensesError) throw expensesError;
 
-      const { error } = await supabase
+      // Delete the batch row — use .select('id') to detect a silent RLS block
+      const { data: deleted, error: deleteError } = await supabase
         .from('batches')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
-      if (error) throw error;
+      if (deleteError) throw deleteError;
 
-      showToast({ type: 'success', title: 'Success', message: 'Batch deleted successfully' });
+      if (!deleted || deleted.length === 0) {
+        console.error('[Batch delete] Delete returned 0 rows — RLS or permission denied for id:', id);
+        showToast({ type: 'error', title: 'Delete Failed', message: 'Delete not allowed for your role or this batch is linked to stock/accounting.' });
+        return;
+      }
+
+      showToast({ type: 'success', title: 'Deleted', message: `${batchLabel} deleted successfully.` });
       await loadBatches();
     } catch (error: any) {
-      console.error('Error deleting batch:', error);
-      const errorMessage = error?.message || 'Unknown error occurred';
-      showToast({ type: 'error', title: 'Error', message: `Failed to delete batch: ${errorMessage}` });
+      console.error('[Batch delete] Unexpected error:', error);
+      showToast({ type: 'error', title: 'Error', message: error?.message || 'Failed to delete batch.' });
     }
   };
 
@@ -735,8 +820,7 @@ export function Batches() {
     const confirmed = await showConfirm({
       title: 'Archive Batch',
       message: 'This batch has 0 stock. Archive it to hide from the active list?',
-      confirmText: 'Archive',
-      cancelText: 'Cancel',
+      confirmLabel: 'Archive',
     });
     if (!confirmed) return;
     try {
@@ -745,7 +829,20 @@ export function Batches() {
         .update({ is_active: false })
         .eq('id', batchId);
       if (error) throw error;
-      showToast({ type: 'success', title: 'Archived', message: 'Batch archived successfully' });
+
+      const { data: check } = await supabase
+        .from('batches')
+        .select('id, is_active')
+        .eq('id', batchId)
+        .maybeSingle();
+
+      if (check && check.is_active === true) {
+        console.error('[Batch archive] Silently failed — row still active:', batchId);
+        showToast({ type: 'error', title: 'Archive Failed', message: 'Archive not allowed for your role. Contact an administrator.' });
+        return;
+      }
+
+      showToast({ type: 'success', title: 'Archived', message: 'Batch archived. Toggle "Show Archived" to view it.' });
       await loadBatches();
     } catch (error: any) {
       showToast({ type: 'error', title: 'Error', message: error?.message || 'Failed to archive batch' });
