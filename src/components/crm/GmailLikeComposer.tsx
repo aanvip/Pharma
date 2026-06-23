@@ -27,6 +27,8 @@ interface Inquiry {
   purchase_price?: number | null;
   purchase_price_currency?: string;
   remarks?: string | null;
+  aceerp_no?: string | null;
+  delivery_date?: string | null;
 }
 
 interface EmailTemplate {
@@ -55,7 +57,9 @@ interface GmailLikeComposerProps {
   onClose: () => void;
   inquiry: Inquiry;
   inquiries?: Inquiry[]; // multiple for multi-product email
-  mode?: 'price' | 'coa' | 'general';
+  mode?: 'price' | 'coa' | 'general' | 'india';
+  defaultTo?: string;   // overrides inquiry.contact_email (used by india mode)
+  defaultCc?: string;   // pre-fills CC field (used by india mode)
   replyTo?: {
     email_id: string;
     subject: string;
@@ -107,7 +111,7 @@ function isCoaDocument(doc: CrmDoc): boolean {
   return haystack.includes('coa');
 }
 
-function inferDocumentType(fileName: string, mode: 'price' | 'coa' | 'general'): 'COA' | 'MSDS' | 'MHD' | 'TDS' | 'SPEC' | 'OTHER' {
+function inferDocumentType(fileName: string, mode: 'price' | 'coa' | 'general' | 'india'): 'COA' | 'MSDS' | 'MHD' | 'TDS' | 'SPEC' | 'OTHER' {
   const normalized = fileName.toLowerCase();
   if (normalized.includes('coa')) return 'COA';
   if (normalized.includes('msds') || normalized.includes('sds')) return 'MSDS';
@@ -225,12 +229,61 @@ function buildPriceTable(items: Inquiry[]): string {
   </table>`;
 }
 
-export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 'general', replyTo }: GmailLikeComposerProps) {
+function buildIndiaTable(items: Inquiry[], docs: CrmDoc[]): string {
+  const headerStyle = 'padding:10px 12px;border:1px solid #b7c9df;background:#073763;color:#ffffff;text-align:left;font-weight:700;font-size:13px;';
+  const cellBase = 'padding:9px 12px;border:1px solid #d1d5db;color:#1f2937;font-size:13px;vertical-align:top;';
+
+  const rows = items.map((inq, index) => {
+    const background = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+    const aceRef = inq.aceerp_no?.trim() || '-';
+    const customer = inq.company_name?.trim() || '-';
+    const product = inq.product_name?.trim() || '-';
+    const spec = inq.specification?.trim() || '-';
+    const make = extractMakeFromRemarks(inq.remarks) || inq.supplier_name?.trim() || '-';
+    const qty = inq.quantity?.trim() || '-';
+    const deliveryDate = inq.delivery_date
+      ? new Date(inq.delivery_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      : '-';
+    const inquiryDocs = docs.filter(d => d.inquiry_id === inq.id);
+    const docTypes = Array.from(new Set(inquiryDocs.map(d => d.document_type))).filter(Boolean);
+    const docsAvail = docTypes.length > 0 ? docTypes.join(', ') : 'None';
+    const remarks = inq.remarks?.trim() || '-';
+
+    return `<tr style="background:${background};">
+      <td style="${cellBase}font-weight:600;white-space:nowrap;">${escapeHtml(aceRef)}</td>
+      <td style="${cellBase}">${escapeHtml(customer)}</td>
+      <td style="${cellBase}font-weight:600;">${escapeHtml(product)}</td>
+      <td style="${cellBase}">${escapeHtml(spec)}</td>
+      <td style="${cellBase}">${escapeHtml(make)}</td>
+      <td style="${cellBase}white-space:nowrap;">${escapeHtml(qty)}</td>
+      <td style="${cellBase}white-space:nowrap;">${escapeHtml(deliveryDate)}</td>
+      <td style="${cellBase}">${escapeHtml(docsAvail)}</td>
+      <td style="${cellBase}">${escapeHtml(remarks)}</td>
+    </tr>`;
+  }).join('');
+
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;width:100%;max-width:900px;font-family:Arial,Helvetica,sans-serif;font-size:13px;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+    <thead><tr>
+      <th style="${headerStyle}">ACE ERP Ref</th>
+      <th style="${headerStyle}">Customer Name</th>
+      <th style="${headerStyle}">Product Name</th>
+      <th style="${headerStyle}">Specification</th>
+      <th style="${headerStyle}">Make</th>
+      <th style="${headerStyle}">Quantity</th>
+      <th style="${headerStyle}">Required Delivery Date</th>
+      <th style="${headerStyle}">Documents Available</th>
+      <th style="${headerStyle}">Remarks</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 'general', defaultTo, defaultCc, replyTo }: GmailLikeComposerProps) {
   // All inquiries to include (multi-product support)
   const allInquiries = inquiries && inquiries.length > 0 ? inquiries : [inquiry];
 
-  const [toEmail, setToEmail] = useState(inquiry.contact_email || '');
-  const [ccEmail, setCcEmail] = useState('');
+  const [toEmail, setToEmail] = useState(defaultTo ?? inquiry.contact_email ?? '');
+  const [ccEmail, setCcEmail] = useState(defaultCc ?? '');
   const [bccEmail, setBccEmail] = useState('');
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
@@ -258,9 +311,17 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
   useEffect(() => {
     if (!isOpen) return;
     loadTemplates();
-    setSubject(buildSubject(inquiry, mode, replyTo));
+    setToEmail(defaultTo ?? inquiry.contact_email ?? '');
+    setCcEmail(defaultCc ?? '');
     setSelectedCrmDocs(new Set());
     setAttachments([]);
+
+    if (mode === 'india') {
+      const refs = allInquiries.map(i => i.aceerp_no).filter(Boolean).join(', ');
+      setSubject(`India Pricing Request - ACE Ref ${refs}`);
+    } else {
+      setSubject(buildSubject(inquiry, mode, replyTo));
+    }
 
     const initialiseComposer = async () => {
       const [userName, docs] = await Promise.all([loadUserInfo(), loadCrmDocs()]);
@@ -279,12 +340,13 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
   useEffect(() => {
     if (!isOpen || !body) return;
     window.setTimeout(() => {
-      const insertedHtml = mode === 'price'
+      const isHtmlSurface = mode === 'price' || mode === 'india';
+      const insertedHtml = isHtmlSurface
         ? htmlPreviewRef.current?.innerHTML || ''
         : quillWrapRef.current?.querySelector('.ql-editor')?.innerHTML || '';
       logEmailHtmlEvidence('Editor value after insertion', insertedHtml, {
         mode,
-        editor: mode === 'price' ? 'HTML preview surface' : 'ReactQuill',
+        editor: isHtmlSurface ? 'HTML preview surface' : 'ReactQuill',
         stateMatchesInsertedDom: insertedHtml === body,
       });
     }, 0);
@@ -319,7 +381,7 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
       .order('created_at', { ascending: false });
     const docs = (data || []) as unknown as CrmDoc[];
     setCrmDocs(docs);
-    if (mode === 'price' || mode === 'coa') {
+    if (mode === 'price' || mode === 'coa' || mode === 'india') {
       setSelectedCrmDocs(new Set(docs.map(doc => doc.id)));
     }
     setCrmDocsLoading(false);
@@ -335,9 +397,29 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
     }
   };
 
-  const generateBody = (emailMode: 'price' | 'coa' | 'general', userName = currentUserName, docs: CrmDoc[] = crmDocs) => {
+  const generateBody = (emailMode: 'price' | 'coa' | 'general' | 'india', userName = currentUserName, docs: CrmDoc[] = crmDocs) => {
     const salutation = `<p>${escapeHtml(getSalutation(inquiry.contact_person))}</p>`;
     const signature = buildCompanySignature(userName);
+
+    if (emailMode === 'india') {
+      let html = `<p>Dear India Team,</p>`;
+      html += `<p>Please find below the pricing request details received from our customer. Kindly review and revert at the earliest.</p>`;
+      html += buildIndiaTable(allInquiries, docs);
+      html += buildSupportingDocsHtml(docs);
+      html += `<p><strong>Kindly provide:</strong></p>`;
+      html += `<ul style="margin:4px 0 14px 0;padding-left:20px;line-height:1.8;">`;
+      html += `<li>Unit Price</li>`;
+      html += `<li>MOQ</li>`;
+      html += `<li>Lead Time</li>`;
+      html += `<li>Availability</li>`;
+      html += `<li>Validity</li>`;
+      html += `<li>Additional Remarks</li>`;
+      html += `</ul>`;
+      html += signature;
+      logEmailHtmlEvidence('Generated India email HTML', html, { mode: emailMode, inquiryIds: allInquiries.map(i => i.id) });
+      setBody(html);
+      return;
+    }
 
     if (emailMode === 'price') {
       let html = salutation;
@@ -429,7 +511,9 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
       alert('Please fill in To, Subject, and Body.');
       return;
     }
-    if (!gmailConnected) {
+    // For india mode the sender is Kunal's mailbox (resolved server-side via requiredSenderEmail).
+    // Skip the current-user Gmail check — the edge function enforces the correct sender.
+    if (mode !== 'india' && !gmailConnected) {
       alert('Gmail is not connected. Please connect your Gmail account in Settings > Gmail Settings.');
       return;
     }
@@ -457,7 +541,7 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
       const attachmentFolder = `email-attachments/${user.id}`;
       const { data: existingObjects } = await supabase.storage.from('crm-documents').list(attachmentFolder, { limit: 1000 });
       const existingStoragePaths = (existingObjects || []).map(obj => `${attachmentFolder}/${obj.name}`);
-      const normalizedDocType = mode === 'coa' ? 'coa' : mode === 'price' ? 'quotation' : 'attachment';
+      const normalizedDocType = mode === 'coa' ? 'coa' : mode === 'price' ? 'quotation' : mode === 'india' ? 'india_pricing' : 'attachment';
       const normalizedBaseKey = buildNormalizedBaseKey(inquiry.product_name || 'product', inquiry.supplier_name || inquiry.company_name || 'supplier', normalizedDocType);
 
       for (const att of attachments) {
@@ -549,9 +633,19 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
       console.groupEnd();
 
       // 3. Send via Gmail
+      const isIndiaMode = mode === 'india';
       const { data: fnData, error: fnErr } = await supabase.functions.invoke('send-bulk-email', {
         body: {
-          userId: user.id,
+          ...(isIndiaMode
+            ? {
+                requiredSenderEmail: 'kunal@sapharmajaya.co.id',
+                replyTo: 'kunal@sapharmajaya.co.id',
+                workflowType: 'india_pricing',
+              }
+            : {
+                userId: user.id,
+                workflowType: 'crm_bulk_email',
+              }),
           toEmails: toList,
           cc: ccList,
           bcc: bccList,
@@ -559,7 +653,6 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
           body,
           isHtml: true,
           senderName: currentUserName,
-          workflowType: 'crm_bulk_email',
           attachmentUrls,
         },
       });
@@ -676,7 +769,7 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
       const timelineRows = allInquiries.map(inq => ({
         inquiry_id: inq.id,
         event_type: 'email_sent',
-        event_title: mode === 'price' ? 'Quotation email sent' : mode === 'coa' ? 'COA/MSDS email sent' : 'Email sent',
+        event_title: mode === 'price' ? 'Quotation email sent' : mode === 'coa' ? 'COA/MSDS email sent' : mode === 'india' ? 'Sent To India' : 'Email sent',
         event_description: `Subject: ${subject}`,
         old_value: beforeWorkflowRows.find(row => row.id === inq.id)?.quote_status || 'not_sent',
         new_value: mode === 'price' ? 'sent' : null,
@@ -690,7 +783,7 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
       const activityLogRows = allInquiries.map(inq => ({
         inquiry_id: inq.id,
         activity_type: 'email_sent',
-        activity_title: mode === 'price' ? 'Quotation email sent' : mode === 'coa' ? 'COA/MSDS email sent' : 'Email sent',
+        activity_title: mode === 'price' ? 'Quotation email sent' : mode === 'coa' ? 'COA/MSDS email sent' : mode === 'india' ? 'Sent To India' : 'Email sent',
         activity_description: `Subject: ${subject}`,
         activity_date: quoteSentAt,
         attachments: allAttachmentPaths.length > 0 ? allAttachmentPaths : null,
@@ -713,6 +806,10 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
           updateData.coa_sent = true;
           updateData.coa_sent_date = new Date().toISOString().split('T')[0];
           updateData.coa_sent_at = quoteSentAt;
+        } else if (mode === 'india') {
+          updateData.sent_to_india = true;
+          updateData.sent_to_india_at = quoteSentAt;
+          updateData.sent_to_india_by = user.id;
         }
         if (shouldMarkCoaSent) {
           updateData.coa_sent = true;
@@ -755,7 +852,7 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
   if (!isOpen) return null;
 
   const isMulti = allInquiries.length > 1;
-  const modeLabel = mode === 'price' ? 'Send Price Quotation' : mode === 'coa' ? 'Send COA / MSDS' : 'New Message';
+  const modeLabel = mode === 'price' ? 'Send Price Quotation' : mode === 'coa' ? 'Send COA / MSDS' : mode === 'india' ? 'Send To India' : 'New Message';
   const sanitizedPreviewBody = useMemo(() => DOMPurify.sanitize(body, {
     ADD_ATTR: ['target'],
   }), [body]);
@@ -877,7 +974,7 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
 
             {/* Rich text body */}
             <div className="flex-1 overflow-y-auto" style={{ minHeight: fullscreen ? 300 : 220 }}>
-              {mode === 'price' ? (
+              {(mode === 'price' || mode === 'india') ? (
                 <div className="crm-html-composer">
                   <div
                     ref={htmlPreviewRef}

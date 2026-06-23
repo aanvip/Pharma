@@ -347,6 +347,7 @@ Deno.serve(async (req: Request) => {
       userId,                 // optional — must equal authUserId if present
       allowFallback,          // boolean — true means fall through to fallback sender
       workflowType,           // required when allowFallback=true; categorises the send
+      requiredSenderEmail,    // optional — bypass user lookup, send from this exact Gmail address
       toEmails,
       cc,
       bcc,
@@ -380,6 +381,7 @@ Deno.serve(async (req: Request) => {
       crm_bulk_email   : { roles: ["admin", "manager", "sales"], fallback: true },
       stock_update     : { roles: ["admin", "manager", "sales"], fallback: true },
       delivery_log     : { roles: ["admin", "manager", "sales"], fallback: true },
+      india_pricing    : { roles: ["admin", "manager", "sales"], fallback: false },
     };
 
     if (workflowType !== undefined && workflowType !== null) {
@@ -465,9 +467,44 @@ Deno.serve(async (req: Request) => {
     let senderMode: "connected_gmail" | "fallback" = "connected_gmail";
     let connection: GmailConnection | null = null;
 
-    if (intendedSenderUserId) {
-      const data = await getGmailConnectionSecret(supabase, { userId: intendedSenderUserId });
-      if (data) connection = data as GmailConnection;
+    // requiredSenderEmail bypasses the auth-user and fallback chains entirely.
+    // The exact mailbox must be connected — no silent fallback.
+    if (typeof requiredSenderEmail === "string" && requiredSenderEmail.trim()) {
+      const { data: connRow } = await supabase
+        .from("gmail_connections")
+        .select("id")
+        .eq("email_address", requiredSenderEmail.trim())
+        .eq("is_connected", true)
+        .maybeSingle();
+
+      if (!connRow?.id) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `India Pricing Mailbox (${requiredSenderEmail}) is not connected. Please reconnect it in Gmail Settings.`,
+            code: "NO_CONNECTION",
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const fetched = await getGmailConnectionSecret(supabase, { connectionId: connRow.id });
+      if (!fetched) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `India Pricing Mailbox (${requiredSenderEmail}) credentials could not be retrieved. Please reconnect in Gmail Settings.`,
+            code: "NO_CONNECTION",
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      connection = fetched as GmailConnection;
+    } else {
+      if (intendedSenderUserId) {
+        const data = await getGmailConnectionSecret(supabase, { userId: intendedSenderUserId });
+        if (data) connection = data as GmailConnection;
+      }
     }
 
     if (!connection && allowFallback) {

@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import {
   ChevronDown, X, Mail, Phone, FileText, Calendar,
   Flame, ArrowUp, Minus, Send, MessageSquare, CheckSquare,
-  Download, FileSpreadsheet, ArrowUpDown, ArrowDown, Check, XCircle, Plus, ChevronRight, Layers, Clock, CheckCircle2, Calculator, Search, ExternalLink, Loader
+  Download, FileSpreadsheet, ArrowUpDown, ArrowDown, Check, XCircle, Plus, ChevronRight, Layers, Clock, CheckCircle2, Calculator, Search, ExternalLink, Loader, Upload
 } from 'lucide-react';
 import { Modal } from '../Modal';
 import { GmailLikeComposer } from './GmailLikeComposer';
@@ -16,6 +16,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { canSeeInternalPricing, canSeeFinalQuote } from '../../utils/permissions';
 import { showToast } from '../ToastNotification';
 import { showConfirm } from '../ConfirmDialog';
+import { INDIA_RECIPIENTS } from '../../config/indiaPricingConfig';
 
 interface InquiryItem {
   id: string;
@@ -157,7 +158,9 @@ export function InquiryTableExcel({ inquiries, onRefresh, canManage, onAddInquir
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [selectedInquiryForEmail, setSelectedInquiryForEmail] = useState<Inquiry | null>(null);
   const [selectedInquiriesForEmail, setSelectedInquiriesForEmail] = useState<Inquiry[]>([]);
-  const [emailMode, setEmailMode] = useState<'price' | 'coa' | 'general'>('general');
+  const [emailMode, setEmailMode] = useState<'price' | 'coa' | 'general' | 'india'>('general');
+  const [indiaDefaultTo, setIndiaDefaultTo] = useState('');
+  const [indiaDefaultCc, setIndiaDefaultCc] = useState('');
   const [logCallModalOpen, setLogCallModalOpen] = useState(false);
   const [callNotes, setCallNotes] = useState('');
   const [followUpModalOpen, setFollowUpModalOpen] = useState(false);
@@ -1343,6 +1346,63 @@ export function InquiryTableExcel({ inquiries, onRefresh, canManage, onAddInquir
     setEmailModalOpen(true);
   };
 
+  const handleSendToIndia = async () => {
+    const selected = filteredData.filter(i => selectedRows.has(i.id));
+    if (!selected.length) return;
+
+    const missing = selected.filter(i => !i.aceerp_no);
+    if (missing.length > 0) {
+      showToast({
+        type: 'error',
+        title: 'Missing ACE ERP Reference',
+        message: `ACE ERP Reference Number is required for: ${missing.map(i => i.inquiry_number).join(', ')}`,
+      });
+      return;
+    }
+
+    // Expand multi-product inquiries into flat product rows for the email table.
+    const expandedRows: Inquiry[] = [];
+    for (const inq of selected) {
+      if (inq.has_items) {
+        let items = inquiryItems.get(inq.id);
+        if (!items) {
+          const { data } = await supabase
+            .from('crm_inquiry_items')
+            .select('*')
+            .eq('parent_inquiry_id', inq.id)
+            .order('inquiry_number', { ascending: true });
+          items = data || [];
+        }
+        if (items.length > 0) {
+          for (const item of items) {
+            expandedRows.push({
+              ...inq,
+              // Override product-level fields from the child item
+              product_name: item.product_name,
+              specification: item.specification ?? inq.specification,
+              quantity: item.quantity,
+              supplier_name: item.supplier_name ?? item.make ?? inq.supplier_name,
+              delivery_date: item.delivery_date ?? inq.delivery_date,
+              aceerp_no: item.aceerp_no ?? inq.aceerp_no,
+              remarks: item.remarks ?? inq.remarks,
+            });
+          }
+        } else {
+          expandedRows.push(inq);
+        }
+      } else {
+        expandedRows.push(inq);
+      }
+    }
+
+    setSelectedInquiryForEmail(selected[0]);
+    setSelectedInquiriesForEmail(expandedRows);
+    setIndiaDefaultTo(INDIA_RECIPIENTS.to.join(', '));
+    setIndiaDefaultCc(INDIA_RECIPIENTS.cc.join(', '));
+    setEmailMode('india');
+    setEmailModalOpen(true);
+  };
+
   const handleLogCall = () => {
     setLogCallModalOpen(true);
   };
@@ -1756,6 +1816,24 @@ export function InquiryTableExcel({ inquiries, onRefresh, canManage, onAddInquir
                 <FileText className="w-3.5 h-3.5" />
                 Send COA/MSDS
               </button>
+              {(() => {
+                const allHaveAceRef = filteredData.filter(i => selectedRows.has(i.id)).every(i => !!i.aceerp_no);
+                return (
+                  <button
+                    onClick={handleSendToIndia}
+                    disabled={!allHaveAceRef}
+                    title={allHaveAceRef ? 'Send To India' : 'ACE ERP Reference Number required before sending to India'}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border transition ${
+                      allHaveAceRef
+                        ? 'text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 cursor-pointer'
+                        : 'text-gray-400 bg-gray-50 border-gray-200 cursor-not-allowed opacity-60'
+                    }`}
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    Send To India
+                  </button>
+                );
+              })()}
               <button
                 onClick={handleLogCall}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition"
@@ -2669,11 +2747,15 @@ export function InquiryTableExcel({ inquiries, onRefresh, canManage, onAddInquir
             setSelectedInquiryForEmail(null);
             setSelectedInquiriesForEmail([]);
             setEmailMode('general');
+            setIndiaDefaultTo('');
+            setIndiaDefaultCc('');
             onRefresh();
           }}
           inquiry={selectedInquiryForEmail}
           inquiries={selectedInquiriesForEmail.length > 1 ? selectedInquiriesForEmail : undefined}
           mode={emailMode}
+          defaultTo={emailMode === 'india' ? indiaDefaultTo : undefined}
+          defaultCc={emailMode === 'india' ? indiaDefaultCc : undefined}
         />
       )}
 
