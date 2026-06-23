@@ -156,6 +156,9 @@ export function KunalIndiaPriceReview({ onChange, activeBucket, onClearBucket, o
   const [savingExtraction, setSavingExtraction] = useState(false);
 
   const [savingDocId, setSavingDocId] = useState<string | null>(null);
+  const [manualSearchText, setManualSearchText] = useState<Record<number, string>>({});
+  const [manualSearching, setManualSearching] = useState<Record<number, boolean>>({});
+  const [showManualSearch, setShowManualSearch] = useState<Record<number, boolean>>({});
   const [viewMode, setViewMode] = useState<'rich' | 'plain'>('rich');
   // Fallback for the EmailBodyReader iframe — its sandboxed quote toggle can't
   // run scripts inside an `allow-same-origin`-only sandbox, so the collapsed
@@ -427,6 +430,23 @@ export function KunalIndiaPriceReview({ onChange, activeBucket, onClearBucket, o
   const reLinkExtractionRow = async (idx: number, hint: { inquiry_number?: string; aceerp_no?: string; product_name?: string }) => {
     const candidates = await findInquiryCandidates(hint);
     updateExtractionRow(idx, { candidates, selectedInquiryId: candidates[0]?.id || null, needsManualLink: !candidates[0] });
+  };
+
+  const handleManualSearch = async (idx: number) => {
+    const text = (manualSearchText[idx] || '').trim();
+    if (!text) return;
+    setManualSearching(prev => ({ ...prev, [idx]: true }));
+    try {
+      await reLinkExtractionRow(idx, { inquiry_number: text });
+      // If candidates were found, dismiss the manual search panel so the user sees the dropdown
+      setExtractionRows(prev => {
+        const found = prev[idx]?.candidates?.length > 0;
+        if (found) setShowManualSearch(p => ({ ...p, [idx]: false }));
+        return prev;
+      });
+    } finally {
+      setManualSearching(prev => ({ ...prev, [idx]: false }));
+    }
   };
 
   const confirmSaveExtraction = async () => {
@@ -1092,26 +1112,77 @@ export function KunalIndiaPriceReview({ onChange, activeBucket, onClearBucket, o
                               )}
                             </label>
                             {row.candidates.length === 0 ? (
-                              <input
-                                placeholder="Inquiry no (manual)"
-                                onBlur={e => reLinkExtractionRow(idx, { inquiry_number: e.target.value })}
-                                className="w-full border border-gray-300 rounded px-1 py-0.5 text-[11px]"
-                              />
+                              /* No AI matches — show proper search UI */
+                              <div className="space-y-1">
+                                <div className="flex gap-1">
+                                  <input
+                                    value={manualSearchText[idx] || ''}
+                                    onChange={e => setManualSearchText(prev => ({ ...prev, [idx]: e.target.value }))}
+                                    onKeyDown={e => { if (e.key === 'Enter') handleManualSearch(idx); }}
+                                    placeholder="Inquiry no. or product name…"
+                                    className="flex-1 border border-amber-300 rounded px-1 py-0.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-amber-400"
+                                  />
+                                  <button
+                                    onClick={() => handleManualSearch(idx)}
+                                    disabled={manualSearching[idx] || !manualSearchText[idx]?.trim()}
+                                    className="inline-flex items-center gap-0.5 px-2 py-0.5 text-[10px] bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50"
+                                  >
+                                    {manualSearching[idx] ? <Loader className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                                    Search
+                                  </button>
+                                </div>
+                                <div className="text-[10px] text-amber-700">No auto-match found — search by inquiry number or product name.</div>
+                              </div>
                             ) : (
-                              <select
-                                value={row.selectedInquiryId || ''}
-                                onChange={e => updateExtractionRow(idx, { selectedInquiryId: e.target.value || null, needsManualLink: !e.target.value })}
-                                className="w-full border border-gray-300 rounded px-1 py-0.5 text-[11px]"
-                              >
-                                <option value="">— pick —</option>
-                                {row.candidates.map(c => {
-                                  const pct = Math.round((c.score || 0) * 100);
-                                  const isSuggested = c.id === row.suggestedInquiryId;
-                                  return (
-                                    <option key={c.id} value={c.id}>[{pct}%] {c.inquiry_number} • {c.product_name}{isSuggested ? ' ★' : ''}</option>
-                                  );
-                                })}
-                              </select>
+                              /* Candidates found — dropdown + option to search for a different one */
+                              <div className="space-y-1">
+                                <select
+                                  value={row.selectedInquiryId || ''}
+                                  onChange={e => updateExtractionRow(idx, { selectedInquiryId: e.target.value || null, needsManualLink: !e.target.value })}
+                                  className="w-full border border-gray-300 rounded px-1 py-0.5 text-[11px]"
+                                >
+                                  <option value="">— pick —</option>
+                                  {row.candidates.map(c => {
+                                    const pct = Math.round((c.score || 0) * 100);
+                                    const isSuggested = c.id === row.suggestedInquiryId;
+                                    return (
+                                      <option key={c.id} value={c.id}>[{pct}%] {c.inquiry_number} • {c.product_name}{isSuggested ? ' ★' : ''}</option>
+                                    );
+                                  })}
+                                </select>
+                                {!showManualSearch[idx] ? (
+                                  <button
+                                    onClick={() => setShowManualSearch(prev => ({ ...prev, [idx]: true }))}
+                                    className="text-[10px] text-blue-600 hover:underline"
+                                  >
+                                    🔍 Link to a different inquiry
+                                  </button>
+                                ) : (
+                                  <div className="flex gap-1 pt-0.5">
+                                    <input
+                                      value={manualSearchText[idx] || ''}
+                                      onChange={e => setManualSearchText(prev => ({ ...prev, [idx]: e.target.value }))}
+                                      onKeyDown={e => { if (e.key === 'Enter') handleManualSearch(idx); }}
+                                      placeholder="Inquiry no. or product name…"
+                                      className="flex-1 border border-blue-300 rounded px-1 py-0.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                      autoFocus
+                                    />
+                                    <button
+                                      onClick={() => handleManualSearch(idx)}
+                                      disabled={manualSearching[idx] || !manualSearchText[idx]?.trim()}
+                                      className="inline-flex items-center gap-0.5 px-2 py-0.5 text-[10px] bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                                    >
+                                      {manualSearching[idx] ? <Loader className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                                    </button>
+                                    <button
+                                      onClick={() => setShowManualSearch(prev => ({ ...prev, [idx]: false }))}
+                                      className="px-2 py-0.5 text-[10px] border border-gray-300 rounded hover:bg-gray-50"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
                           <div>
