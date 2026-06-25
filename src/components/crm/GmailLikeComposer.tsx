@@ -810,6 +810,8 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
           updateData.sent_to_india = true;
           updateData.sent_to_india_at = quoteSentAt;
           updateData.sent_to_india_by = user.id;
+          updateData.source_status = 'sent';
+          updateData.last_sourcing_sent_at = quoteSentAt;
         }
         if (shouldMarkCoaSent) {
           updateData.coa_sent = true;
