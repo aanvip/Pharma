@@ -29,6 +29,10 @@ interface Inquiry {
   remarks?: string | null;
   aceerp_no?: string | null;
   delivery_date?: string | null;
+  coa_required?: boolean | null;
+  sample_required?: boolean | null;
+  agency_letter_required?: boolean | null;
+  others_required?: boolean | null;
 }
 
 interface EmailTemplate {
@@ -229,7 +233,16 @@ function buildPriceTable(items: Inquiry[]): string {
   </table>`;
 }
 
-function buildIndiaTable(items: Inquiry[], docs: CrmDoc[]): string {
+function buildDocsRequired(inq: Inquiry): string {
+  const labels: string[] = [];
+  if (inq.coa_required) labels.push('COA');
+  if (inq.sample_required) labels.push('Sample');
+  if (inq.agency_letter_required) labels.push('Agency Letter');
+  if (inq.others_required) labels.push('Others');
+  return labels.length > 0 ? labels.join(', ') : '-';
+}
+
+function buildIndiaTable(items: Inquiry[], _docs: CrmDoc[]): string {
   const headerStyle = 'padding:10px 12px;border:1px solid #b7c9df;background:#073763;color:#ffffff;text-align:left;font-weight:700;font-size:13px;';
   const cellBase = 'padding:9px 12px;border:1px solid #d1d5db;color:#1f2937;font-size:13px;vertical-align:top;';
 
@@ -244,9 +257,7 @@ function buildIndiaTable(items: Inquiry[], docs: CrmDoc[]): string {
     const deliveryDate = inq.delivery_date
       ? new Date(inq.delivery_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
       : '-';
-    const inquiryDocs = docs.filter(d => d.inquiry_id === inq.id);
-    const docTypes = Array.from(new Set(inquiryDocs.map(d => d.document_type))).filter(Boolean);
-    const docsAvail = docTypes.length > 0 ? docTypes.join(', ') : 'None';
+    const docsRequired = buildDocsRequired(inq);
     const remarks = inq.remarks?.trim() || '-';
 
     return `<tr style="background:${background};">
@@ -257,21 +268,23 @@ function buildIndiaTable(items: Inquiry[], docs: CrmDoc[]): string {
       <td style="${cellBase}">${escapeHtml(make)}</td>
       <td style="${cellBase}white-space:nowrap;">${escapeHtml(qty)}</td>
       <td style="${cellBase}white-space:nowrap;">${escapeHtml(deliveryDate)}</td>
-      <td style="${cellBase}">${escapeHtml(docsAvail)}</td>
+      <td style="${cellBase}">${escapeHtml(docsRequired)}</td>
+      <td style="${cellBase}"></td>
       <td style="${cellBase}">${escapeHtml(remarks)}</td>
     </tr>`;
   }).join('');
 
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;width:100%;max-width:900px;font-family:Arial,Helvetica,sans-serif;font-size:13px;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;width:100%;max-width:960px;font-family:Arial,Helvetica,sans-serif;font-size:13px;mso-table-lspace:0pt;mso-table-rspace:0pt;">
     <thead><tr>
       <th style="${headerStyle}">ACE ERP Ref</th>
       <th style="${headerStyle}">Customer Name</th>
       <th style="${headerStyle}">Product Name</th>
       <th style="${headerStyle}">Specification</th>
       <th style="${headerStyle}">Make</th>
-      <th style="${headerStyle}">Quantity</th>
+      <th style="${headerStyle}">Qty</th>
       <th style="${headerStyle}">Required Delivery Date</th>
-      <th style="${headerStyle}">Documents Available</th>
+      <th style="${headerStyle}">Documents Required</th>
+      <th style="${headerStyle}">Price</th>
       <th style="${headerStyle}">Remarks</th>
     </tr></thead>
     <tbody>${rows}</tbody>
@@ -318,7 +331,7 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
 
     if (mode === 'india') {
       const refs = allInquiries.map(i => i.aceerp_no).filter(Boolean).join(', ');
-      setSubject(`India Pricing Request - ACE Ref ${refs}`);
+      setSubject(`Pricing Request - ACE Ref ${refs}`);
     } else {
       setSubject(buildSubject(inquiry, mode, replyTo));
     }
@@ -402,19 +415,12 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
     const signature = buildCompanySignature(userName);
 
     if (emailMode === 'india') {
-      let html = `<p>Dear India Team,</p>`;
-      html += `<p>Please find below the pricing request details received from our customer. Kindly review and revert at the earliest.</p>`;
+      let html = `<p>Dear Team,</p>`;
+      html += `<p>Please provide your best quotation for the following requirement.</p>`;
       html += buildIndiaTable(allInquiries, docs);
       html += buildSupportingDocsHtml(docs);
-      html += `<p><strong>Kindly provide:</strong></p>`;
-      html += `<ul style="margin:4px 0 14px 0;padding-left:20px;line-height:1.8;">`;
-      html += `<li>Unit Price</li>`;
-      html += `<li>MOQ</li>`;
-      html += `<li>Lead Time</li>`;
-      html += `<li>Availability</li>`;
-      html += `<li>Validity</li>`;
-      html += `<li>Additional Remarks</li>`;
-      html += `</ul>`;
+      html += `<p>Thank you.</p>`;
+      html += `<p>Best Regards,</p><p>Kunal Lunkad</p><p>PT Shubham Anzen Pharma Jaya</p>`;
       html += signature;
       logEmailHtmlEvidence('Generated India email HTML', html, { mode: emailMode, inquiryIds: allInquiries.map(i => i.id) });
       setBody(html);
