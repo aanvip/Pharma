@@ -96,14 +96,32 @@ export function FinancialReports({ initialReport = 'trial_balance', onDrillDown 
   const { t } = useLanguage();
   const [reportType, setReportType] = useState<ReportType>(initialReport);
   const [loading, setLoading] = useState(false);
+  const [usdRate, setUsdRate] = useState<number>(16000);
+  const [usdRateInput, setUsdRateInput] = useState<string>('16000');
 
   const [openingTB, setOpeningTB]         = useState<TrialBalanceRow[]>([]);
   const [periodTB, setPeriodTB]           = useState<TrialBalanceRow[]>([]);
   const [balanceSheetData, setBalanceSheetData] = useState<TrialBalanceRow[]>([]);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
+  // Fetch the system's latest USD→IDR rate on mount
+  useEffect(() => {
+    supabase.rpc('get_reporting_usd_rate').then(({ data }) => {
+      if (data && Number(data) > 1) {
+        setUsdRate(Number(data));
+        setUsdRateInput(String(Number(data)));
+      }
+    });
+  }, []);
+
   useEffect(() => { setReportType(initialReport); }, [initialReport]);
-  useEffect(() => { loadReport(); }, [reportType, dateRange]);
+  useEffect(() => { loadReport(); }, [reportType, dateRange, usdRate]);
+
+  const handleRateChange = (val: string) => {
+    setUsdRateInput(val);
+    const n = parseFloat(val.replace(/,/g, ''));
+    if (!isNaN(n) && n > 100) setUsdRate(n);
+  };
 
   const loadReport = async () => {
     setLoading(true);
@@ -112,10 +130,12 @@ export function FinancialReports({ initialReport = 'trial_balance', onDrillDown 
         supabase.rpc('get_trial_balance', {
           p_start_date: dateRange.startDate,
           p_end_date:   dateRange.endDate,
+          p_usd_rate:   usdRate,
         }),
         supabase.rpc('get_trial_balance', {
           p_start_date: '2000-01-01',
           p_end_date:   prevDay(dateRange.startDate),
+          p_usd_rate:   usdRate,
         }),
       ]);
       setPeriodTB((periodRes.data || []) as TrialBalanceRow[]);
@@ -124,6 +144,7 @@ export function FinancialReports({ initialReport = 'trial_balance', onDrillDown 
       if (reportType === 'balance_sheet') {
         const { data: bsData } = await supabase.rpc('get_balance_sheet', {
           p_as_of_date: dateRange.endDate,
+          p_usd_rate:   usdRate,
         });
         setBalanceSheetData((bsData || []) as TrialBalanceRow[]);
       }
@@ -239,6 +260,7 @@ export function FinancialReports({ initialReport = 'trial_balance', onDrillDown 
   const exportTrialBalance = () => {
     const rows: Record<string, string | number>[] = [
       { 'Code': '', 'Account': `Trial Balance — ${fmtDate(dateRange.startDate)} to ${fmtDate(dateRange.endDate)}`, 'Opening Dr': '', 'Opening Cr': '', 'Period Dr': '', 'Period Cr': '', 'Closing Dr': '', 'Closing Cr': '' },
+      { 'Code': '', 'Account': `Reporting Currency: IDR | USD Rate: 1 USD = Rp ${fmt(usdRate)}`, 'Opening Dr': '', 'Opening Cr': '', 'Period Dr': '', 'Period Cr': '', 'Closing Dr': '', 'Closing Cr': '' },
       { 'Code': '', 'Account': '', 'Opening Dr': '', 'Opening Cr': '', 'Period Dr': '', 'Period Cr': '', 'Closing Dr': '', 'Closing Cr': '' },
     ];
     for (const section of TB_SECTIONS) {
@@ -264,6 +286,7 @@ export function FinancialReports({ initialReport = 'trial_balance', onDrillDown 
   const exportPnL = () => {
     const rows: Record<string, string | number>[] = [
       { 'Section': `Profit & Loss — ${fmtDate(dateRange.startDate)} to ${fmtDate(dateRange.endDate)}`, 'Code': '', 'Account': '', 'Amount (Rp)': '', '% of Revenue': '' },
+      { 'Section': `Reporting Currency: IDR | USD Rate: 1 USD = Rp ${fmt(usdRate)}`, 'Code': '', 'Account': '', 'Amount (Rp)': '', '% of Revenue': '' },
       { 'Section': '', 'Code': '', 'Account': '', 'Amount (Rp)': '', '% of Revenue': '' },
     ];
     const add = (label: string, items: TrialBalanceRow[], getAmt: (r: TrialBalanceRow) => number) => {
@@ -293,6 +316,7 @@ export function FinancialReports({ initialReport = 'trial_balance', onDrillDown 
   const exportBalanceSheet = () => {
     const rows: Record<string, string | number>[] = [
       { 'Section': `Balance Sheet — As of ${fmtDate(dateRange.endDate)}`, 'Code': '', 'Account': '', 'Amount (Rp)': '' },
+      { 'Section': `Reporting Currency: IDR | USD Rate: 1 USD = Rp ${fmt(usdRate)}`, 'Code': '', 'Account': '', 'Amount (Rp)': '' },
       { 'Section': '', 'Code': '', 'Account': '', 'Amount (Rp)': '' },
     ];
     const addGroup = (label: string, items: TrialBalanceRow[], getAmt: (r: TrialBalanceRow) => number, total: number, totalLabel: string) => {
@@ -364,6 +388,33 @@ export function FinancialReports({ initialReport = 'trial_balance', onDrillDown 
     </tr>
   );
 
+  // Shared currency info bar shown in every report header
+  const CurrencyBar = () => (
+    <div className="flex items-center gap-4 mt-1.5 print:hidden">
+      <span className="text-[10px] text-slate-300">Reporting Currency: <span className="font-semibold text-white">IDR</span></span>
+      <span className="text-slate-500 text-[10px]">|</span>
+      <span className="text-[10px] text-slate-300 flex items-center gap-1.5">
+        USD Rate:
+        <span className="text-[10px] text-slate-400">1 USD =</span>
+        <input
+          type="text"
+          value={usdRateInput}
+          onChange={e => handleRateChange(e.target.value)}
+          onBlur={() => setUsdRateInput(fmt(usdRate))}
+          className="w-24 px-1.5 py-0.5 rounded text-[10px] bg-slate-700 border border-slate-500 text-white text-right tabular-nums focus:outline-none focus:border-blue-400"
+        />
+        <span className="text-slate-400 text-[10px]">IDR</span>
+      </span>
+    </div>
+  );
+
+  // Print-only currency info
+  const CurrencyBarPrint = () => (
+    <div className="hidden print:block text-[9px] text-gray-500 mt-0.5">
+      Reporting Currency: IDR &nbsp;|&nbsp; USD Rate: 1 USD = Rp {fmt(usdRate)}
+    </div>
+  );
+
   if (loading) return (
     <div className="flex items-center justify-center py-16">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
@@ -387,6 +438,8 @@ export function FinancialReports({ initialReport = 'trial_balance', onDrillDown 
                 <p className="text-xs text-slate-300 print:text-gray-600">
                   For the period {fmtDate(dateRange.startDate)} to {fmtDate(dateRange.endDate)}
                 </p>
+                <CurrencyBar />
+                <CurrencyBarPrint />
               </div>
               <div className="flex items-center gap-2 print:hidden">
                 <button onClick={() => window.print()} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded text-white">
@@ -544,6 +597,8 @@ export function FinancialReports({ initialReport = 'trial_balance', onDrillDown 
                 <p className="text-xs text-slate-300 print:text-gray-600">
                   For the period {fmtDate(dateRange.startDate)} to {fmtDate(dateRange.endDate)}
                 </p>
+                <CurrencyBar />
+                <CurrencyBarPrint />
               </div>
               <div className="flex items-center gap-2 print:hidden">
                 <button onClick={() => window.print()} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded text-white">
@@ -710,6 +765,8 @@ export function FinancialReports({ initialReport = 'trial_balance', onDrillDown 
                 <p className="text-[10px] uppercase tracking-widest text-slate-400 print:text-gray-500">PT Anzen Koorporasi Indonesia</p>
                 <h2 className="text-base font-bold mt-0.5">Balance Sheet</h2>
                 <p className="text-xs text-slate-300 print:text-gray-600">As at {fmtDate(dateRange.endDate)}</p>
+                <CurrencyBar />
+                <CurrencyBarPrint />
               </div>
               <div className="flex items-center gap-2 print:hidden">
                 <button onClick={() => window.print()} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded text-white">
