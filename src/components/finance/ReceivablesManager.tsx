@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { DataTable } from '../DataTable';
 import { Modal } from '../Modal';
-import { TrendingUp, RefreshCw } from 'lucide-react';
+import { TrendingUp, RefreshCw, BarChart2 } from 'lucide-react';
 import { useNavigation } from '../../contexts/NavigationContext';
 import { formatDate } from '../../utils/dateFormat';
 
@@ -40,7 +40,7 @@ interface BankAccount {
 
 export function ReceivablesManager({ canManage }: { canManage: boolean }) {
   const { setCurrentPage } = useNavigation();
-  const [view, setView] = useState<'invoices' | 'payments'>('invoices');
+  const [view, setView] = useState<'invoices' | 'payments' | 'ageing'>('invoices');
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
   const [payments, setPayments] = useState<ReceiptVoucher[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -327,6 +327,39 @@ export function ReceivablesManager({ canManage }: { canManage: boolean }) {
     });
   };
 
+  const ageingRows = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return invoices.map((inv) => {
+      const balance = inv.total_amount - (inv.paid_amount || 0);
+      const due = new Date(inv.due_date);
+      due.setHours(0, 0, 0, 0);
+      const daysOverdue = Math.max(0, Math.floor((today.getTime() - due.getTime()) / 86400000));
+
+      return {
+        ...inv,
+        balance,
+        daysOverdue,
+        bucket0_30:  daysOverdue <= 30  ? balance : 0,
+        bucket31_60: daysOverdue >= 31 && daysOverdue <= 60 ? balance : 0,
+        bucket61_90: daysOverdue >= 61 && daysOverdue <= 90 ? balance : 0,
+        bucket90plus: daysOverdue > 90 ? balance : 0,
+      };
+    }).sort((a, b) => b.daysOverdue - a.daysOverdue);
+  }, [invoices]);
+
+  const ageingTotals = useMemo(() => ageingRows.reduce(
+    (acc, r) => ({
+      balance:      acc.balance      + r.balance,
+      bucket0_30:   acc.bucket0_30   + r.bucket0_30,
+      bucket31_60:  acc.bucket31_60  + r.bucket31_60,
+      bucket61_90:  acc.bucket61_90  + r.bucket61_90,
+      bucket90plus: acc.bucket90plus + r.bucket90plus,
+    }),
+    { balance: 0, bucket0_30: 0, bucket31_60: 0, bucket61_90: 0, bucket90plus: 0 }
+  ), [ageingRows]);
+
   const invoiceColumns = [
     {
       key: 'invoice_number',
@@ -476,6 +509,17 @@ export function ReceivablesManager({ canManage }: { canManage: boolean }) {
           >
             Payment History
           </button>
+          <button
+            onClick={() => setView('ageing')}
+            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-1.5 ${
+              view === 'ageing'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <BarChart2 className="w-4 h-4" />
+            AR Ageing
+          </button>
         </div>
         <button
           onClick={handleRefresh}
@@ -529,12 +573,112 @@ export function ReceivablesManager({ canManage }: { canManage: boolean }) {
             />
           )}
         </>
-      ) : (
+      ) : view === 'payments' ? (
         <DataTable
           columns={paymentColumns}
           data={payments}
           loading={loading}
         />
+      ) : (
+        /* AR Ageing Schedule */
+        <div className="space-y-4">
+          {/* Summary cards */}
+          <div className="grid grid-cols-5 gap-3">
+            {[
+              { label: 'Total Outstanding', value: ageingTotals.balance, color: 'bg-gray-50 border-gray-200 text-gray-900' },
+              { label: '0 – 30 Days', value: ageingTotals.bucket0_30, color: 'bg-green-50 border-green-200 text-green-800' },
+              { label: '31 – 60 Days', value: ageingTotals.bucket31_60, color: 'bg-yellow-50 border-yellow-200 text-yellow-800' },
+              { label: '61 – 90 Days', value: ageingTotals.bucket61_90, color: 'bg-orange-50 border-orange-200 text-orange-800' },
+              { label: '> 90 Days', value: ageingTotals.bucket90plus, color: 'bg-red-50 border-red-200 text-red-800' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className={`border rounded-lg p-3 ${color}`}>
+                <div className="text-xs font-medium mb-1">{label}</div>
+                <div className="text-sm font-bold">
+                  Rp {value.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Ageing detail table */}
+          {ageingRows.length === 0 && !loading ? (
+            <div className="text-center py-12 text-gray-500">
+              <TrendingUp className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+              <p className="text-lg font-medium">No Outstanding Receivables</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-3 py-2 font-medium text-gray-700">Customer</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-700">Invoice #</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-700">Invoice Date</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-700">Due Date</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-700">Days Overdue</th>
+                    <th className="text-right px-3 py-2 font-medium text-green-700">0–30</th>
+                    <th className="text-right px-3 py-2 font-medium text-yellow-700">31–60</th>
+                    <th className="text-right px-3 py-2 font-medium text-orange-700">61–90</th>
+                    <th className="text-right px-3 py-2 font-medium text-red-700">&gt;90</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-700">Balance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {ageingRows.map((row) => (
+                    <tr key={row.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2">{row.customers?.company_name || 'N/A'}</td>
+                      <td className="px-3 py-2 font-medium">{row.invoice_number}</td>
+                      <td className="px-3 py-2 text-gray-600">{formatDate(row.invoice_date)}</td>
+                      <td className="px-3 py-2 text-gray-600">{formatDate(row.due_date)}</td>
+                      <td className={`px-3 py-2 text-right font-semibold ${
+                        row.daysOverdue > 90 ? 'text-red-600' :
+                        row.daysOverdue > 60 ? 'text-orange-600' :
+                        row.daysOverdue > 30 ? 'text-yellow-600' : 'text-green-600'
+                      }`}>
+                        {row.daysOverdue === 0 ? 'Current' : `${row.daysOverdue}d`}
+                      </td>
+                      <td className="px-3 py-2 text-right text-green-700">
+                        {row.bucket0_30 > 0 ? `Rp ${row.bucket0_30.toLocaleString('id-ID', { minimumFractionDigits: 0 })}` : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right text-yellow-700">
+                        {row.bucket31_60 > 0 ? `Rp ${row.bucket31_60.toLocaleString('id-ID', { minimumFractionDigits: 0 })}` : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right text-orange-700">
+                        {row.bucket61_90 > 0 ? `Rp ${row.bucket61_90.toLocaleString('id-ID', { minimumFractionDigits: 0 })}` : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right text-red-700 font-medium">
+                        {row.bucket90plus > 0 ? `Rp ${row.bucket90plus.toLocaleString('id-ID', { minimumFractionDigits: 0 })}` : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right font-semibold text-gray-900">
+                        Rp {row.balance.toLocaleString('id-ID', { minimumFractionDigits: 0 })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50 border-t-2 border-gray-300 font-bold">
+                  <tr>
+                    <td colSpan={5} className="px-3 py-2 text-gray-700">Total</td>
+                    <td className="px-3 py-2 text-right text-green-700">
+                      Rp {ageingTotals.bucket0_30.toLocaleString('id-ID', { minimumFractionDigits: 0 })}
+                    </td>
+                    <td className="px-3 py-2 text-right text-yellow-700">
+                      Rp {ageingTotals.bucket31_60.toLocaleString('id-ID', { minimumFractionDigits: 0 })}
+                    </td>
+                    <td className="px-3 py-2 text-right text-orange-700">
+                      Rp {ageingTotals.bucket61_90.toLocaleString('id-ID', { minimumFractionDigits: 0 })}
+                    </td>
+                    <td className="px-3 py-2 text-right text-red-700">
+                      Rp {ageingTotals.bucket90plus.toLocaleString('id-ID', { minimumFractionDigits: 0 })}
+                    </td>
+                    <td className="px-3 py-2 text-right text-gray-900">
+                      Rp {ageingTotals.balance.toLocaleString('id-ID', { minimumFractionDigits: 0 })}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
       )}
 
       <Modal
