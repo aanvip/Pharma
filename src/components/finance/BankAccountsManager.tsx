@@ -16,6 +16,8 @@ interface BankAccount {
   current_balance: number;
   is_active: boolean;
   alias?: string;
+  coa_code?: string;
+  ledger_balance?: number;
 }
 
 interface Props {
@@ -44,13 +46,31 @@ export function BankAccountsManager({ canManage }: Props) {
 
   const loadAccounts = async () => {
     try {
-      const { data, error } = await supabase
-        .from('bank_accounts')
-        .select('*')
-        .order('created_at', { ascending: false});
+      const today = new Date().toISOString().split('T')[0];
+      const [accountsRes, bsRes] = await Promise.all([
+        supabase
+          .from('bank_accounts')
+          .select('*, chart_of_accounts!coa_id(code)')
+          .order('created_at', { ascending: false }),
+        supabase.rpc('get_balance_sheet', { p_as_of_date: today }),
+      ]);
 
-      if (error) throw error;
-      setAccounts(data || []);
+      if (accountsRes.error) throw accountsRes.error;
+
+      const bsMap: Record<string, number> = {};
+      (bsRes.data || []).forEach((row: any) => {
+        bsMap[row.code] = Number(row.balance);
+      });
+
+      const enriched = (accountsRes.data || []).map((acct: any) => ({
+        ...acct,
+        coa_code: acct.chart_of_accounts?.code,
+        ledger_balance: acct.chart_of_accounts?.code
+          ? (bsMap[acct.chart_of_accounts.code] ?? null)
+          : null,
+      }));
+
+      setAccounts(enriched);
     } catch (error) {
       console.error('Error loading bank accounts:', error);
     } finally {
@@ -127,7 +147,23 @@ export function BankAccountsManager({ canManage }: Props) {
     { key: 'bank_name', label: 'Bank' },
     { key: 'account_number', label: 'Account #' },
     { key: 'type', label: 'Type', render: (_val: any, item: BankAccount) => <span className="capitalize">{item.account_type || 'current'}</span> },
-    { key: 'balance', label: 'Balance', render: (_val: any, item: BankAccount) => <span className="font-semibold">Rp {(item.current_balance || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> },
+    {
+      key: 'balance',
+      label: 'GL Balance',
+      render: (_val: any, item: BankAccount) => {
+        if (item.ledger_balance === null || item.ledger_balance === undefined) {
+          return <span className="text-gray-400 text-xs">No COA linked</span>;
+        }
+        const isNegative = item.ledger_balance < 0;
+        return (
+          <span className={`font-semibold ${isNegative ? 'text-red-600' : 'text-gray-900'}`}>
+            {item.currency === 'USD' ? 'USD ' : 'Rp '}
+            {Math.abs(item.ledger_balance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {isNegative && ' (Dr)'}
+          </span>
+        );
+      }
+    },
     { key: 'status', label: 'Status', render: (_val: any, item: BankAccount) => (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
         item.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
