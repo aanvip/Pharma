@@ -71,15 +71,16 @@ BEGIN
   IF p_voucher_id IS NULL THEN
 
     -- INSERT fires trg_post_payment_voucher which creates the JE
+    -- net_amount is a generated column — do NOT include it
     INSERT INTO payment_vouchers (
       voucher_number, voucher_date, supplier_id, payment_method,
       bank_account_id, reference_number, amount, pph_amount, pph_code_id,
-      net_amount, description, payment_currency, exchange_rate,
+      description, payment_currency, exchange_rate,
       bank_amount, bank_charge, created_by
     ) VALUES (
       p_voucher_number, p_voucher_date, p_supplier_id, p_payment_method,
       p_bank_account_id, p_reference_number, p_amount, p_pph_amount, p_pph_code_id,
-      v_net_amount, p_description, p_payment_currency, p_exchange_rate,
+      p_description, p_payment_currency, p_exchange_rate,
       p_bank_amount, p_bank_charge, p_created_by
     ) RETURNING id INTO v_voucher_id;
 
@@ -99,7 +100,7 @@ BEGIN
       v_debit_account_id := v_coa_account_id;
     END IF;
 
-    -- Update voucher header
+    -- Update voucher header (net_amount is generated — omit it)
     UPDATE payment_vouchers SET
       voucher_date     = p_voucher_date,
       supplier_id      = p_supplier_id,
@@ -109,7 +110,6 @@ BEGIN
       amount           = p_amount,
       pph_amount       = p_pph_amount,
       pph_code_id      = p_pph_code_id,
-      net_amount       = v_net_amount,
       description      = p_description,
       payment_currency = p_payment_currency,
       exchange_rate    = p_exchange_rate,
