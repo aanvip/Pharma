@@ -140,6 +140,8 @@ export function PaymentVoucherManager({ canManage, prefillInvoice, onPrefillCons
   }, [prefillInvoice, loading]);
 
   useEffect(() => {
+    // In edit mode handleEdit manages invoice loading — skip this effect entirely
+    if (editingVoucher) return;
     if (formData.supplier_id) {
       const isPrefill = prefillInvoice && prefillInvoice.supplier_id === formData.supplier_id;
       loadPendingInvoices(
@@ -152,7 +154,7 @@ export function PaymentVoucherManager({ canManage, prefillInvoice, onPrefillCons
       setPendingInvoices([]);
       setAllocations([]);
     }
-  }, [formData.supplier_id]);
+  }, [formData.supplier_id, editingVoucher]);
 
   useEffect(() => {
     if (formData.bank_account_id) {
@@ -332,23 +334,36 @@ export function PaymentVoucherManager({ canManage, prefillInvoice, onPrefillCons
       const bank = bankAccounts.find(b => b.id === v.bank_account_id);
       if (bank) setSelectedBank(bank);
     }
-    // Load all invoices for this supplier (including already-paid ones for re-allocation)
-    const { data } = await supabase
+    // Load all invoices for this supplier (including paid ones so we can re-allocate)
+    const { data: invData } = await supabase
       .from('purchase_invoices')
       .select('id, invoice_number, invoice_date, total_amount, paid_amount, balance_amount, currency')
       .eq('supplier_id', v.supplier_id)
       .order('invoice_date');
-    setPendingInvoices(data || []);
-    // Load existing allocations
+    setPendingInvoices(invData || []);
+    // Load existing allocations for this voucher
     const { data: allocs } = await supabase
       .from('voucher_allocations')
       .select('purchase_invoice_id, allocated_amount, allocated_currency')
       .eq('payment_voucher_id', v.id);
-    setAllocations((allocs || []).map(a => ({
-      invoiceId: a.purchase_invoice_id,
-      amount: a.allocated_amount,
-      currency: a.allocated_currency || 'IDR',
-    })));
+    setAllocations((allocs || []).map(a => {
+      // Always use invoice currency for allocation amounts.
+      // If stored currency doesn't match the invoice currency (e.g. IDR bank debit was
+      // accidentally stored instead of the USD invoice amount), normalise to invoice currency
+      // and cap at invoice total to prevent false Over! warnings.
+      const matchedInv = (invData || []).find(inv => inv.id === a.purchase_invoice_id);
+      const invCurrency = matchedInv?.currency || a.allocated_currency || 'IDR';
+      const currencyMismatch = a.allocated_currency && matchedInv?.currency &&
+        a.allocated_currency !== matchedInv.currency;
+      const safeAmount = currencyMismatch
+        ? Math.min(a.allocated_amount, matchedInv!.total_amount)
+        : a.allocated_amount;
+      return {
+        invoiceId: a.purchase_invoice_id,
+        amount: safeAmount,
+        currency: invCurrency,
+      };
+    }));
     setModalOpen(true);
   };
 
@@ -802,42 +817,53 @@ export function PaymentVoucherManager({ canManage, prefillInvoice, onPrefillCons
                     <tr>
                       <th className="px-3 py-1.5 text-left font-medium text-gray-500">Invoice</th>
                       <th className="px-3 py-1.5 text-center font-medium text-gray-500">CCY</th>
-                      <th className="px-3 py-1.5 text-right font-medium text-gray-500">Balance</th>
+                      <th className="px-3 py-1.5 text-right font-medium text-gray-500">Available</th>
                       <th className="px-3 py-1.5 text-right font-medium text-gray-500">Allocate</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {pendingInvoices.map(inv => {
-                      const invCcy = inv.currency || 'IDR';
-                      return (
-                        <tr key={inv.id}>
-                          <td className="px-3 py-1.5">
-                            <div className="font-mono">{inv.invoice_number}</div>
-                            <div className="text-gray-400">{new Date(inv.invoice_date).toLocaleDateString('id-ID')}</div>
-                          </td>
-                          <td className="px-3 py-1.5 text-center">
-                            <span className={`px-1 py-0.5 rounded text-[10px] font-bold ${invCcy === 'USD' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                              {invCcy}
-                            </span>
-                          </td>
-                          <td className="px-3 py-1.5 text-right font-medium text-red-600">
-                            {fmt(inv.balance_amount, invCcy)}
-                          </td>
-                          <td className="px-3 py-1.5 text-right">
-                            <input
-                              type="number"
-                              min={0}
-                              max={inv.balance_amount + (allocations.find(a => a.invoiceId === inv.id)?.amount || 0)}
-                              step="0.01"
-                              value={allocations.find(a => a.invoiceId === inv.id)?.amount || ''}
-                              onChange={(e) => handleAllocationChange(inv, parseFloat(e.target.value) || 0)}
-                              className="w-24 px-2 py-1 border rounded text-right"
-                              placeholder="0"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {pendingInvoices
+                      // In edit mode show invoices that have an existing allocation OR still have balance
+                      .filter(inv => editingVoucher
+                        ? (inv.balance_amount > 0 || allocations.some(a => a.invoiceId === inv.id))
+                        : true)
+                      .map(inv => {
+                        const invCcy = inv.currency || 'IDR';
+                        // Effective available = DB balance + this voucher's existing allocation
+                        // (the existing allocation was already deducted from DB balance_amount)
+                        const thisAlloc = allocations.find(a => a.invoiceId === inv.id)?.amount || 0;
+                        const availableBalance = editingVoucher
+                          ? inv.balance_amount + thisAlloc
+                          : inv.balance_amount;
+                        return (
+                          <tr key={inv.id}>
+                            <td className="px-3 py-1.5">
+                              <div className="font-mono">{inv.invoice_number}</div>
+                              <div className="text-gray-400">{new Date(inv.invoice_date).toLocaleDateString('id-ID')}</div>
+                            </td>
+                            <td className="px-3 py-1.5 text-center">
+                              <span className={`px-1 py-0.5 rounded text-[10px] font-bold ${invCcy === 'USD' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                                {invCcy}
+                              </span>
+                            </td>
+                            <td className="px-3 py-1.5 text-right font-medium text-red-600">
+                              {fmt(availableBalance, invCcy)}
+                            </td>
+                            <td className="px-3 py-1.5 text-right">
+                              <input
+                                type="number"
+                                min={0}
+                                max={availableBalance}
+                                step="0.01"
+                                value={thisAlloc || ''}
+                                onChange={(e) => handleAllocationChange(inv, parseFloat(e.target.value) || 0)}
+                                className="w-24 px-2 py-1 border rounded text-right"
+                                placeholder="0"
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
