@@ -110,6 +110,7 @@ function FinanceContent() {
   const [payInvoice, setPayInvoice] = useState<{ id: string; invoice_number: string; supplier_id: string; balance_amount: number } | null>(null);
   const [focusExpenseId, setFocusExpenseId] = useState<string | null>(null);
   const [focusPettyCashId, setFocusPettyCashId] = useState<string | null>(null);
+  const [ledgerDrillCode, setLedgerDrillCode] = useState<string | null>(null);
   const canManage = profile?.role === 'admin' || profile?.role === 'accounts';
 
   const handlePayInvoice = (invoice: { id: string; invoice_number: string; supplier_id: string; balance_amount: number }) => {
@@ -239,7 +240,7 @@ function FinanceContent() {
           />
         );
       case 'ledger':
-        return <AccountLedger />;
+        return <AccountLedger initialCode={ledgerDrillCode ?? undefined} onCodeConsumed={() => setLedgerDrillCode(null)} />;
       case 'journal_register':
         return <JournalEntryViewer canManage={canManage} onEditEntry={handleEditJournalEntry} />;
       case 'bank_ledger':
@@ -249,11 +250,11 @@ function FinanceContent() {
       case 'bank_recon':
         return <BankReconciliation canManage={canManage} />;
       case 'trial_balance':
-        return <FinancialReports initialReport="trial_balance" />;
+        return <FinancialReports initialReport="trial_balance" onDrillDown={(code) => { setLedgerDrillCode(code); setActiveTab('ledger'); }} />;
       case 'pnl':
-        return <FinancialReports initialReport="pnl" />;
+        return <FinancialReports initialReport="pnl" onDrillDown={(code) => { setLedgerDrillCode(code); setActiveTab('ledger'); }} />;
       case 'balance_sheet':
-        return <FinancialReports initialReport="balance_sheet" />;
+        return <FinancialReports initialReport="balance_sheet" onDrillDown={(code) => { setLedgerDrillCode(code); setActiveTab('ledger'); }} />;
       case 'receivables':
         return <ReceivablesManager canManage={canManage} />;
       case 'payables':

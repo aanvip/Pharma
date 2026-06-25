@@ -29,7 +29,12 @@ interface Account {
   normal_balance: string;
 }
 
-export function AccountLedger() {
+interface AccountLedgerProps {
+  initialCode?: string;
+  onCodeConsumed?: () => void;
+}
+
+export function AccountLedger({ initialCode, onCodeConsumed }: AccountLedgerProps = {}) {
   const { dateRange } = useFinance();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
@@ -41,6 +46,16 @@ export function AccountLedger() {
   useEffect(() => {
     loadAccounts();
   }, []);
+
+  useEffect(() => {
+    if (initialCode && accounts.length > 0) {
+      const match = accounts.find(a => a.code === initialCode);
+      if (match) {
+        setSelectedAccount(match);
+        onCodeConsumed?.();
+      }
+    }
+  }, [initialCode, accounts]);
 
   useEffect(() => {
     if (selectedAccount) {

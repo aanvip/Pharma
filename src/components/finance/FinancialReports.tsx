@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Download, RefreshCw } from 'lucide-react';
+import { Download, ChevronDown, ChevronRight, Printer } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useFinance } from '../../contexts/FinanceContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -17,19 +17,35 @@ interface TrialBalanceRow {
   balance: number;
 }
 
+interface MergedTBRow extends TrialBalanceRow {
+  openingDr: number;
+  openingCr: number;
+  periodDr: number;
+  periodCr: number;
+  closingDr: number;
+  closingCr: number;
+}
+
 type ReportType = 'trial_balance' | 'pnl' | 'balance_sheet';
 
 interface FinancialReportsProps {
   initialReport?: ReportType;
+  onDrillDown?: (code: string, name: string) => void;
 }
 
-const fmt = (n: number) =>
-  n.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
+// ─── Formatting helpers ───────────────────────────────────────────────────────
+const fmt = (n: number) => n.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const fmt2 = (n: number) => n.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+const pctStr = (n: number, base: number) =>
+  base !== 0 ? ((n / base) * 100).toFixed(1) + '%' : '—';
+const prevDay = (iso: string) => {
+  const d = new Date(iso);
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
+};
 
-// Grouped Balance Sheet rows helper
 function groupBy<T>(arr: T[], key: (r: T) => string): Map<string, T[]> {
   const map = new Map<string, T[]>();
   for (const item of arr) {
@@ -40,32 +56,71 @@ function groupBy<T>(arr: T[], key: (r: T) => string): Map<string, T[]> {
   return map;
 }
 
-export function FinancialReports({ initialReport = 'trial_balance' }: FinancialReportsProps) {
+// ─── TB section definitions ───────────────────────────────────────────────────
+const TB_SECTIONS = [
+  { id: 'current-assets',     label: 'Assets — Current',       labelId: 'Aset Lancar',           color: 'blue',   filter: (r: MergedTBRow) => r.account_type === 'asset' && (r.account_group === 'Current Assets' || (!r.account_group && r.code < '1200')) },
+  { id: 'fixed-assets',       label: 'Assets — Non-current',   labelId: 'Aset Tidak Lancar',     color: 'blue',   filter: (r: MergedTBRow) => r.account_type === 'asset' && r.account_group !== 'Current Assets' && !(!r.account_group && r.code < '1200') },
+  { id: 'liability',          label: 'Liabilities',            labelId: 'Kewajiban',             color: 'red',    filter: (r: MergedTBRow) => r.account_type === 'liability' },
+  { id: 'equity',             label: 'Equity',                 labelId: 'Modal',                 color: 'purple', filter: (r: MergedTBRow) => r.account_type === 'equity' },
+  { id: 'revenue',            label: 'Revenue',                labelId: 'Pendapatan',            color: 'green',  filter: (r: MergedTBRow) => r.account_type === 'revenue' },
+  { id: 'cogs',               label: 'Cost of Goods Sold',     labelId: 'Harga Pokok Penjualan', color: 'orange', filter: (r: MergedTBRow) => r.account_type === 'expense' && r.account_group === 'COGS' },
+  { id: 'operating-expenses', label: 'Operating Expenses',     labelId: 'Beban Operasional',     color: 'orange', filter: (r: MergedTBRow) => r.account_type === 'expense' && r.account_group === 'Operating Expenses' },
+  { id: 'other-expenses',     label: 'Other Expenses',         labelId: 'Beban Lain-lain',       color: 'orange', filter: (r: MergedTBRow) => r.account_type === 'expense' && r.account_group !== 'COGS' && r.account_group !== 'Operating Expenses' },
+  { id: 'contra',             label: 'Contra Accounts',        labelId: 'Akun Kontra',           color: 'gray',   filter: (r: MergedTBRow) => r.account_type === 'contra' },
+] as const;
+
+const SECTION_BG: Record<string, string> = {
+  blue: 'bg-blue-50 text-blue-900',
+  red: 'bg-red-50 text-red-900',
+  purple: 'bg-purple-50 text-purple-900',
+  green: 'bg-green-50 text-green-900',
+  orange: 'bg-orange-50 text-orange-900',
+  gray: 'bg-gray-50 text-gray-700',
+};
+const SECTION_TOTAL_BG: Record<string, string> = {
+  blue: 'bg-blue-100 text-blue-900',
+  red: 'bg-red-100 text-red-900',
+  purple: 'bg-purple-100 text-purple-900',
+  green: 'bg-green-100 text-green-900',
+  orange: 'bg-orange-100 text-orange-900',
+  gray: 'bg-gray-100 text-gray-800',
+};
+
+// ─── BS classification ────────────────────────────────────────────────────────
+const BS_ASSET_CURRENT  = ['Current Assets'];
+const BS_LIAB_CURRENT   = ['Current Liabilities'];
+const BS_LIAB_LONGTERM  = ['Long-term Liabilities', 'Long Term Liabilities', 'Other Liabilities'];
+
+export function FinancialReports({ initialReport = 'trial_balance', onDrillDown }: FinancialReportsProps) {
   const { dateRange } = useFinance();
   const { t } = useLanguage();
   const [reportType, setReportType] = useState<ReportType>(initialReport);
   const [loading, setLoading] = useState(false);
 
-  // Period data (start→end) — used for Trial Balance and P&L
-  const [trialBalance, setTrialBalance] = useState<TrialBalanceRow[]>([]);
-  // Cumulative data (inception→end) — used for Balance Sheet
+  const [openingTB, setOpeningTB]         = useState<TrialBalanceRow[]>([]);
+  const [periodTB, setPeriodTB]           = useState<TrialBalanceRow[]>([]);
   const [balanceSheetData, setBalanceSheetData] = useState<TrialBalanceRow[]>([]);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   useEffect(() => { setReportType(initialReport); }, [initialReport]);
-
   useEffect(() => { loadReport(); }, [reportType, dateRange]);
 
   const loadReport = async () => {
     setLoading(true);
     try {
-      // Period trial balance (always load for P&L + TB)
-      const { data: tbData } = await supabase.rpc('get_trial_balance', {
-        p_start_date: dateRange.startDate,
-        p_end_date:   dateRange.endDate,
-      });
-      setTrialBalance((tbData || []) as TrialBalanceRow[]);
+      const [periodRes, openingRes] = await Promise.all([
+        supabase.rpc('get_trial_balance', {
+          p_start_date: dateRange.startDate,
+          p_end_date:   dateRange.endDate,
+        }),
+        supabase.rpc('get_trial_balance', {
+          p_start_date: '2000-01-01',
+          p_end_date:   prevDay(dateRange.startDate),
+        }),
+      ]);
+      setPeriodTB((periodRes.data || []) as TrialBalanceRow[]);
+      setOpeningTB((openingRes.data || []) as TrialBalanceRow[]);
 
-      // Cumulative balance sheet (only when needed)
       if (reportType === 'balance_sheet') {
         const { data: bsData } = await supabase.rpc('get_balance_sheet', {
           p_as_of_date: dateRange.endDate,
@@ -79,22 +134,51 @@ export function FinancialReports({ initialReport = 'trial_balance' }: FinancialR
     }
   };
 
-  // ── Trial Balance calculations ──────────────────────────────────────────
-  // Footer: sum of positive balances (debit column) and abs of negative balances (credit column)
-  const tbTotals = useMemo(() => trialBalance.reduce(
-    (acc, row) => ({
-      debit:  acc.debit  + (row.balance > 0 ? row.balance : 0),
-      credit: acc.credit + (row.balance < 0 ? Math.abs(row.balance) : 0),
-    }),
-    { debit: 0, credit: 0 }
-  ), [trialBalance]);
+  // ── Merged TB rows (Opening + Period → Closing) ───────────────────────────
+  const mergedTB = useMemo((): MergedTBRow[] => {
+    const codeMap = new Map<string, MergedTBRow>();
+    for (const r of openingTB) {
+      const ob = r.balance;
+      codeMap.set(r.code, {
+        ...r,
+        openingDr: Math.max(0, ob),
+        openingCr: Math.max(0, -ob),
+        periodDr: 0,
+        periodCr: 0,
+        closingDr: Math.max(0, ob),
+        closingCr: Math.max(0, -ob),
+      });
+    }
+    for (const r of periodTB) {
+      const existing = codeMap.get(r.code);
+      const ob = existing ? (existing.openingDr - existing.openingCr) : 0;
+      const cb = ob + r.balance;
+      if (existing) {
+        existing.periodDr  = r.total_debit;
+        existing.periodCr  = r.total_credit;
+        existing.closingDr = Math.max(0, cb);
+        existing.closingCr = Math.max(0, -cb);
+      } else {
+        codeMap.set(r.code, {
+          ...r,
+          openingDr: 0,
+          openingCr: 0,
+          periodDr:  r.total_debit,
+          periodCr:  r.total_credit,
+          closingDr: Math.max(0, r.balance),
+          closingCr: Math.max(0, -r.balance),
+        });
+      }
+    }
+    return Array.from(codeMap.values()).sort((a, b) => a.code.localeCompare(b.code));
+  }, [openingTB, periodTB]);
 
-  // ── P&L calculations ────────────────────────────────────────────────────
-  const revenueRows  = useMemo(() => trialBalance.filter(r => r.account_type === 'revenue'), [trialBalance]);
-  const contraRevRows = useMemo(() => trialBalance.filter(r => r.account_type === 'contra' && r.account_group === 'Revenue'), [trialBalance]);
-  const cogsRows     = useMemo(() => trialBalance.filter(r => r.account_type === 'expense' && r.account_group === 'COGS'), [trialBalance]);
-  const opexRows     = useMemo(() => trialBalance.filter(r => r.account_type === 'expense' && r.account_group === 'Operating Expenses'), [trialBalance]);
-  const otherExpRows = useMemo(() => trialBalance.filter(r => r.account_type === 'expense' && (r.account_group === 'Other Expenses' || (!r.account_group && r.account_type === 'expense'))), [trialBalance]);
+  // ── P&L calculations (unchanged from original) ───────────────────────────
+  const revenueRows   = useMemo(() => periodTB.filter(r => r.account_type === 'revenue'), [periodTB]);
+  const contraRevRows = useMemo(() => periodTB.filter(r => r.account_type === 'contra' && r.account_group === 'Revenue'), [periodTB]);
+  const cogsRows      = useMemo(() => periodTB.filter(r => r.account_type === 'expense' && r.account_group === 'COGS'), [periodTB]);
+  const opexRows      = useMemo(() => periodTB.filter(r => r.account_type === 'expense' && r.account_group === 'Operating Expenses'), [periodTB]);
+  const otherExpRows  = useMemo(() => periodTB.filter(r => r.account_type === 'expense' && r.account_group !== 'COGS' && r.account_group !== 'Operating Expenses'), [periodTB]);
 
   const totalRevenue    = revenueRows.reduce((s, r) => s + Math.abs(r.balance), 0);
   const totalContraRev  = contraRevRows.reduce((s, r) => s + Math.abs(r.balance), 0);
@@ -106,486 +190,710 @@ export function FinancialReports({ initialReport = 'trial_balance' }: FinancialR
   const totalOtherExp   = otherExpRows.reduce((s, r) => s + r.balance, 0);
   const netIncome       = operatingIncome - totalOtherExp;
 
-  // ── Balance Sheet calculations (cumulative data) ────────────────────────
-  const bsAssetRows     = useMemo(() => balanceSheetData.filter(r => r.account_type === 'asset'), [balanceSheetData]);
-  const bsContraAssets  = useMemo(() => balanceSheetData.filter(r => r.account_type === 'contra' && (r.account_group?.includes('Assets') || r.account_group?.includes('Fixed'))), [balanceSheetData]);
-  const bsLiabRows      = useMemo(() => balanceSheetData.filter(r => r.account_type === 'liability'), [balanceSheetData]);
-  const bsEquityRows    = useMemo(() => balanceSheetData.filter(r => r.account_type === 'equity' || (r.account_type === 'contra' && r.account_group === 'Equity')), [balanceSheetData]);
+  // ── Balance Sheet calculations ───────────────────────────────────────────
+  const bsAssetRows    = useMemo(() => balanceSheetData.filter(r => r.account_type === 'asset'), [balanceSheetData]);
+  const bsContraAssets = useMemo(() => balanceSheetData.filter(r => r.account_type === 'contra' && r.account_group?.toLowerCase().includes('asset')), [balanceSheetData]);
+  const bsLiabRows     = useMemo(() => balanceSheetData.filter(r => r.account_type === 'liability'), [balanceSheetData]);
+  const bsEquityRows   = useMemo(() => balanceSheetData.filter(r => r.account_type === 'equity' || (r.account_type === 'contra' && r.account_group === 'Equity')), [balanceSheetData]);
 
-  const totalAssets     = bsAssetRows.reduce((s, r) => s + r.balance, 0) - bsContraAssets.reduce((s, r) => s + Math.abs(r.balance), 0);
+  const totalAssets      = bsAssetRows.reduce((s, r) => s + r.balance, 0) - bsContraAssets.reduce((s, r) => s + Math.abs(r.balance), 0);
   const totalLiabilities = bsLiabRows.reduce((s, r) => s + Math.abs(r.balance), 0);
-  const totalEquity     = bsEquityRows.reduce((s, r) => s + (r.account_type === 'equity' ? Math.abs(r.balance) : -Math.abs(r.balance)), 0);
-  const totalLiabEquity = totalLiabilities + totalEquity + netIncome;
-  const balanceCheck    = Math.abs(totalAssets - totalLiabEquity);
+  const totalEquityBase  = bsEquityRows.reduce((s, r) => s + (r.account_type === 'equity' ? Math.abs(r.balance) : -Math.abs(r.balance)), 0);
+  const totalEquity      = totalEquityBase + netIncome;
+  const totalLiabEquity  = totalLiabilities + totalEquity;
+  const balanceCheck     = Math.abs(totalAssets - totalLiabEquity);
 
-  // Asset groups for structured Balance Sheet
-  const assetGroups = useMemo(() => groupBy(bsAssetRows, r => r.account_group || 'Other Assets'), [bsAssetRows]);
-  const liabGroups  = useMemo(() => groupBy(bsLiabRows, r => r.account_group || 'Other Liabilities'), [bsLiabRows]);
+  const assetCurrentRows  = bsAssetRows.filter(r => BS_ASSET_CURRENT.includes(r.account_group || ''));
+  const assetNonCurrRows  = bsAssetRows.filter(r => !BS_ASSET_CURRENT.includes(r.account_group || ''));
+  const liabCurrentRows   = bsLiabRows.filter(r => BS_LIAB_CURRENT.includes(r.account_group || '') || !BS_LIAB_LONGTERM.includes(r.account_group || ''));
+  const liabLongtermRows  = bsLiabRows.filter(r => BS_LIAB_LONGTERM.includes(r.account_group || ''));
 
-  // ── Export helpers ──────────────────────────────────────────────────────
+  const totalCurrentAssets   = assetCurrentRows.reduce((s, r) => s + r.balance, 0);
+  const totalNonCurrAssets   = assetNonCurrRows.reduce((s, r) => s + r.balance, 0) - bsContraAssets.reduce((s, r) => s + Math.abs(r.balance), 0);
+  const totalCurrentLiab     = liabCurrentRows.reduce((s, r) => s + Math.abs(r.balance), 0);
+  const totalLongtermLiab    = liabLongtermRows.reduce((s, r) => s + Math.abs(r.balance), 0);
+
+  // ── TB grand totals ───────────────────────────────────────────────────────
+  const tbGrandTotals = useMemo(() => mergedTB.reduce(
+    (acc, r) => ({
+      openingDr: acc.openingDr + r.openingDr,
+      openingCr: acc.openingCr + r.openingCr,
+      periodDr:  acc.periodDr  + r.periodDr,
+      periodCr:  acc.periodCr  + r.periodCr,
+      closingDr: acc.closingDr + r.closingDr,
+      closingCr: acc.closingCr + r.closingCr,
+    }),
+    { openingDr: 0, openingCr: 0, periodDr: 0, periodCr: 0, closingDr: 0, closingCr: 0 }
+  ), [mergedTB]);
+
+  // ── Toggle section collapse ───────────────────────────────────────────────
+  const toggleSection = (id: string) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  // ── Excel exports ─────────────────────────────────────────────────────────
   const exportTrialBalance = () => {
-    const rows = trialBalance.map(r => ({
-      'Code':         r.code,
-      'Account Name': r.name,
-      'Type':         r.account_type,
-      'Debit':        r.balance > 0 ? r.balance : '',
-      'Credit':       r.balance < 0 ? Math.abs(r.balance) : '',
-    }));
-    rows.push({
-      'Code': '', 'Account Name': 'TOTAL', 'Type': '',
-      'Debit': tbTotals.debit, 'Credit': tbTotals.credit,
-    } as any);
+    const rows: Record<string, string | number>[] = [
+      { 'Code': '', 'Account': `Trial Balance — ${fmtDate(dateRange.startDate)} to ${fmtDate(dateRange.endDate)}`, 'Opening Dr': '', 'Opening Cr': '', 'Period Dr': '', 'Period Cr': '', 'Closing Dr': '', 'Closing Cr': '' },
+      { 'Code': '', 'Account': '', 'Opening Dr': '', 'Opening Cr': '', 'Period Dr': '', 'Period Cr': '', 'Closing Dr': '', 'Closing Cr': '' },
+    ];
+    for (const section of TB_SECTIONS) {
+      const sectionRows = mergedTB.filter(section.filter as (r: MergedTBRow) => boolean);
+      if (sectionRows.length === 0) continue;
+      rows.push({ 'Code': '', 'Account': section.label, 'Opening Dr': '', 'Opening Cr': '', 'Period Dr': '', 'Period Cr': '', 'Closing Dr': '', 'Closing Cr': '' });
+      let sDr = 0, sCr = 0, pDr = 0, pCr = 0, cDr = 0, cCr = 0;
+      for (const r of sectionRows) {
+        rows.push({ 'Code': r.code, 'Account': r.name, 'Opening Dr': r.openingDr || '', 'Opening Cr': r.openingCr || '', 'Period Dr': r.periodDr || '', 'Period Cr': r.periodCr || '', 'Closing Dr': r.closingDr || '', 'Closing Cr': r.closingCr || '' });
+        sDr += r.openingDr; sCr += r.openingCr; pDr += r.periodDr; pCr += r.periodCr; cDr += r.closingDr; cCr += r.closingCr;
+      }
+      rows.push({ 'Code': '', 'Account': `Total ${section.label}`, 'Opening Dr': sDr, 'Opening Cr': sCr, 'Period Dr': pDr, 'Period Cr': pCr, 'Closing Dr': cDr, 'Closing Cr': cCr });
+      rows.push({ 'Code': '', 'Account': '', 'Opening Dr': '', 'Opening Cr': '', 'Period Dr': '', 'Period Cr': '', 'Closing Dr': '', 'Closing Cr': '' });
+    }
+    rows.push({ 'Code': '', 'Account': 'GRAND TOTAL', 'Opening Dr': tbGrandTotals.openingDr, 'Opening Cr': tbGrandTotals.openingCr, 'Period Dr': tbGrandTotals.periodDr, 'Period Cr': tbGrandTotals.periodCr, 'Closing Dr': tbGrandTotals.closingDr, 'Closing Cr': tbGrandTotals.closingCr });
     const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 10 }, { wch: 50 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Trial Balance');
-    XLSX.writeFile(wb, `Trial_Balance_${dateRange.endDate}.xlsx`);
+    XLSX.writeFile(wb, `Trial_Balance_${dateRange.startDate}_${dateRange.endDate}.xlsx`);
   };
 
   const exportPnL = () => {
-    const rows: Record<string, string | number>[] = [];
-    const addSection = (label: string, items: TrialBalanceRow[], getAmt: (r: TrialBalanceRow) => number) => {
-      rows.push({ Section: label, Code: '', Account: '', Amount: '' });
-      items.forEach(r => rows.push({ Section: '', Code: r.code, Account: r.name, Amount: getAmt(r) }));
+    const rows: Record<string, string | number>[] = [
+      { 'Section': `Profit & Loss — ${fmtDate(dateRange.startDate)} to ${fmtDate(dateRange.endDate)}`, 'Code': '', 'Account': '', 'Amount (Rp)': '', '% of Revenue': '' },
+      { 'Section': '', 'Code': '', 'Account': '', 'Amount (Rp)': '', '% of Revenue': '' },
+    ];
+    const add = (label: string, items: TrialBalanceRow[], getAmt: (r: TrialBalanceRow) => number) => {
+      rows.push({ 'Section': label, 'Code': '', 'Account': '', 'Amount (Rp)': '', '% of Revenue': '' });
+      items.forEach(r => { const a = getAmt(r); rows.push({ 'Section': '', 'Code': r.code, 'Account': r.name, 'Amount (Rp)': a, '% of Revenue': netRevenue > 0 ? ((a / netRevenue) * 100).toFixed(1) + '%' : '' }); });
     };
-    addSection('Revenue', revenueRows, r => Math.abs(r.balance));
-    if (contraRevRows.length) addSection('Less: Sales Deductions', contraRevRows, r => -Math.abs(r.balance));
-    rows.push({ Section: 'NET REVENUE', Code: '', Account: '', Amount: netRevenue });
-    addSection('Cost of Goods Sold', cogsRows, r => r.balance);
-    rows.push({ Section: 'GROSS PROFIT', Code: '', Account: '', Amount: grossProfit });
-    addSection('Operating Expenses', opexRows, r => r.balance);
-    rows.push({ Section: 'OPERATING INCOME', Code: '', Account: '', Amount: operatingIncome });
-    if (otherExpRows.length) addSection('Other Expenses', otherExpRows, r => r.balance);
-    rows.push({ Section: 'NET INCOME', Code: '', Account: '', Amount: netIncome });
+    const addTotal = (label: string, amount: number) => {
+      rows.push({ 'Section': label, 'Code': '', 'Account': '', 'Amount (Rp)': amount, '% of Revenue': netRevenue > 0 ? ((amount / netRevenue) * 100).toFixed(1) + '%' : '' });
+      rows.push({ 'Section': '', 'Code': '', 'Account': '', 'Amount (Rp)': '', '% of Revenue': '' });
+    };
+    add('Revenue', revenueRows, r => Math.abs(r.balance));
+    if (contraRevRows.length) add('Less: Returns & Discounts', contraRevRows, r => -Math.abs(r.balance));
+    addTotal('NET REVENUE', netRevenue);
+    add('Cost of Goods Sold', cogsRows, r => r.balance);
+    addTotal('GROSS PROFIT', grossProfit);
+    add('Operating Expenses', opexRows, r => r.balance);
+    addTotal('OPERATING INCOME', operatingIncome);
+    if (otherExpRows.length) { add('Other Expenses', otherExpRows, r => r.balance); }
+    addTotal('NET INCOME (PROVISIONAL)', netIncome);
     const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 35 }, { wch: 10 }, { wch: 45 }, { wch: 20 }, { wch: 12 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'P&L');
     XLSX.writeFile(wb, `PnL_${dateRange.startDate}_${dateRange.endDate}.xlsx`);
   };
 
   const exportBalanceSheet = () => {
-    const rows: Record<string, string | number>[] = [];
-    const addGroup = (label: string, items: TrialBalanceRow[], getAmt: (r: TrialBalanceRow) => number) => {
-      rows.push({ Section: label, Code: '', Account: '', Amount: '' });
-      items.forEach(r => rows.push({ Section: '', Code: r.code, Account: r.name, Amount: getAmt(r) }));
+    const rows: Record<string, string | number>[] = [
+      { 'Section': `Balance Sheet — As of ${fmtDate(dateRange.endDate)}`, 'Code': '', 'Account': '', 'Amount (Rp)': '' },
+      { 'Section': '', 'Code': '', 'Account': '', 'Amount (Rp)': '' },
+    ];
+    const addGroup = (label: string, items: TrialBalanceRow[], getAmt: (r: TrialBalanceRow) => number, total: number, totalLabel: string) => {
+      rows.push({ 'Section': label, 'Code': '', 'Account': '', 'Amount (Rp)': '' });
+      items.forEach(r => rows.push({ 'Section': '', 'Code': r.code, 'Account': r.name, 'Amount (Rp)': getAmt(r) }));
+      rows.push({ 'Section': totalLabel, 'Code': '', 'Account': '', 'Amount (Rp)': total });
+      rows.push({ 'Section': '', 'Code': '', 'Account': '', 'Amount (Rp)': '' });
     };
-    rows.push({ Section: 'ASSETS', Code: '', Account: '', Amount: '' });
-    assetGroups.forEach((items, group) => addGroup(group, items, r => r.balance));
-    if (bsContraAssets.length) addGroup('Contra Assets', bsContraAssets, r => -Math.abs(r.balance));
-    rows.push({ Section: 'TOTAL ASSETS', Code: '', Account: '', Amount: totalAssets });
-    rows.push({ Section: 'LIABILITIES', Code: '', Account: '', Amount: '' });
-    liabGroups.forEach((items, group) => addGroup(group, items, r => Math.abs(r.balance)));
-    rows.push({ Section: 'TOTAL LIABILITIES', Code: '', Account: '', Amount: totalLiabilities });
-    rows.push({ Section: 'EQUITY', Code: '', Account: '', Amount: '' });
-    bsEquityRows.forEach(r => rows.push({ Section: '', Code: r.code, Account: r.name, Amount: r.account_type === 'equity' ? Math.abs(r.balance) : -Math.abs(r.balance) }));
-    rows.push({ Section: '', Code: '', Account: 'Current Period Earnings', Amount: netIncome });
-    rows.push({ Section: 'TOTAL EQUITY', Code: '', Account: '', Amount: totalEquity + netIncome });
-    rows.push({ Section: 'TOTAL LIABILITIES + EQUITY', Code: '', Account: '', Amount: totalLiabEquity });
+    addGroup('CURRENT ASSETS', assetCurrentRows, r => r.balance, totalCurrentAssets, 'Total Current Assets');
+    addGroup('NON-CURRENT ASSETS', assetNonCurrRows, r => r.balance, totalNonCurrAssets, 'Total Non-current Assets');
+    rows.push({ 'Section': 'TOTAL ASSETS', 'Code': '', 'Account': '', 'Amount (Rp)': totalAssets });
+    rows.push({ 'Section': '', 'Code': '', 'Account': '', 'Amount (Rp)': '' });
+    addGroup('CURRENT LIABILITIES', liabCurrentRows, r => Math.abs(r.balance), totalCurrentLiab, 'Total Current Liabilities');
+    if (liabLongtermRows.length) addGroup('LONG-TERM LIABILITIES', liabLongtermRows, r => Math.abs(r.balance), totalLongtermLiab, 'Total Long-term Liabilities');
+    rows.push({ 'Section': 'TOTAL LIABILITIES', 'Code': '', 'Account': '', 'Amount (Rp)': totalLiabilities });
+    rows.push({ 'Section': '', 'Code': '', 'Account': '', 'Amount (Rp)': '' });
+    rows.push({ 'Section': 'EQUITY', 'Code': '', 'Account': '', 'Amount (Rp)': '' });
+    bsEquityRows.forEach(r => rows.push({ 'Section': '', 'Code': r.code, 'Account': r.name, 'Amount (Rp)': r.account_type === 'equity' ? Math.abs(r.balance) : -Math.abs(r.balance) }));
+    rows.push({ 'Section': '', 'Code': '3300', 'Account': 'Current Year Earnings', 'Amount (Rp)': netIncome });
+    rows.push({ 'Section': 'TOTAL EQUITY', 'Code': '', 'Account': '', 'Amount (Rp)': totalEquity });
+    rows.push({ 'Section': '', 'Code': '', 'Account': '', 'Amount (Rp)': '' });
+    rows.push({ 'Section': 'TOTAL LIABILITIES + EQUITY', 'Code': '', 'Account': '', 'Amount (Rp)': totalLiabEquity });
+    rows.push({ 'Section': balanceCheck < 0.02 ? 'BALANCED ✓' : `OUT OF BALANCE ⚠ Diff: ${fmt2(balanceCheck)}`, 'Code': '', 'Account': '', 'Amount (Rp)': '' });
     const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 35 }, { wch: 10 }, { wch: 45 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Balance Sheet');
     XLSX.writeFile(wb, `BalanceSheet_${dateRange.endDate}.xlsx`);
   };
 
-  const SubtotalRow = ({ label, amount, color = 'gray' }: { label: string; amount: number; color?: string }) => (
-    <tr className={`font-semibold border-t ${color === 'green' ? 'bg-green-50' : color === 'red' ? 'bg-red-50' : 'bg-gray-50'}`}>
-      <td colSpan={2} className="py-1.5 px-1 text-xs">{label}</td>
-      <td className={`py-1.5 text-right text-xs font-bold ${amount >= 0 ? 'text-gray-800' : 'text-red-700'}`}>
-        Rp {fmt(amount)}
+  // ── Shared sub-components ─────────────────────────────────────────────────
+  const AmtCell = ({ value, className = '' }: { value: number; className?: string }) => (
+    <td className={`px-3 py-1.5 text-right tabular-nums text-xs ${value === 0 ? 'text-gray-300' : 'text-gray-800'} ${className}`}>
+      {value !== 0 ? fmt(value) : '—'}
+    </td>
+  );
+
+  const PnLAccountRow = ({ row, getAmt }: { row: TrialBalanceRow; getAmt: (r: TrialBalanceRow) => number }) => {
+    const amount = getAmt(row);
+    return (
+      <tr className="hover:bg-gray-50 group">
+        <td className="pl-8 pr-2 py-1 text-[10px] font-mono text-gray-400 w-16">{row.code}</td>
+        <td className="px-2 py-1 text-xs text-gray-700">
+          {onDrillDown ? (
+            <button onClick={() => onDrillDown(row.code, row.name)} className="hover:text-blue-600 hover:underline text-left">
+              {row.name}
+            </button>
+          ) : row.name}
+        </td>
+        <td className="px-3 py-1 text-right text-xs tabular-nums text-gray-800 w-36">{amount !== 0 ? `Rp ${fmt(amount)}` : '—'}</td>
+        <td className="px-3 py-1 text-right text-[10px] text-gray-400 w-20">{pctStr(Math.abs(amount), netRevenue)}</td>
+      </tr>
+    );
+  };
+
+  const BSRow = ({ row, amount }: { row: TrialBalanceRow; amount: number }) => (
+    <tr className="hover:bg-gray-50">
+      <td className="pl-10 pr-2 py-1 text-[10px] font-mono text-gray-400 w-16">{row.code}</td>
+      <td className="px-2 py-1 text-xs text-gray-700">
+        {onDrillDown ? (
+          <button onClick={() => onDrillDown(row.code, row.name)} className="hover:text-blue-600 hover:underline text-left">
+            {row.name}
+          </button>
+        ) : row.name}
+      </td>
+      <td className={`px-4 py-1 text-right text-xs tabular-nums w-44 ${amount < 0 ? 'text-red-600' : 'text-gray-800'}`}>
+        {amount < 0 ? `(Rp ${fmt(Math.abs(amount))})` : `Rp ${fmt(amount)}`}
       </td>
     </tr>
   );
 
+  if (loading) return (
+    <div className="flex items-center justify-center py-16">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+    </div>
+  );
+
   return (
-    <div>
-      {loading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-        </div>
-      ) : (
-        <>
-          {/* ═══════════════════════════════════════════
-              TRIAL BALANCE
-          ═══════════════════════════════════════════ */}
-          {reportType === 'trial_balance' && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-base">Trial Balance — {fmtDate(dateRange.startDate)} to {fmtDate(dateRange.endDate)}</h3>
-                  <p className="text-xs text-gray-500 italic">Neraca Saldo periode {fmtDate(dateRange.startDate)} s/d {fmtDate(dateRange.endDate)}</p>
-                </div>
-                <button onClick={exportTrialBalance}
-                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50">
+    <div className="space-y-0 print:space-y-4">
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          TRIAL BALANCE
+      ═══════════════════════════════════════════════════════════════════ */}
+      {reportType === 'trial_balance' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden print:shadow-none print:border-0">
+          {/* Report Header */}
+          <div className="bg-slate-800 text-white px-5 py-3 print:bg-white print:text-gray-900 print:border-b-2 print:border-gray-800">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 print:text-gray-500">PT Anzen Koorporasi Indonesia</p>
+                <h2 className="text-base font-bold mt-0.5">Trial Balance</h2>
+                <p className="text-xs text-slate-300 print:text-gray-600">
+                  For the period {fmtDate(dateRange.startDate)} to {fmtDate(dateRange.endDate)}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 print:hidden">
+                <button onClick={() => window.print()} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded text-white">
+                  <Printer className="w-3.5 h-3.5" /> Print
+                </button>
+                <button onClick={exportTrialBalance} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-green-700 hover:bg-green-600 rounded text-white">
                   <Download className="w-3.5 h-3.5" /> Excel
                 </button>
               </div>
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase w-20">Code</th>
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Account Name</th>
-                    <th className="px-3 py-2 text-right text-[10px] font-semibold text-blue-600 uppercase w-36">Debit</th>
-                    <th className="px-3 py-2 text-right text-[10px] font-semibold text-green-600 uppercase w-36">Credit</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {trialBalance.map(row => (
-                    <tr key={row.code} className="hover:bg-gray-50">
-                      <td className="px-3 py-1.5 font-mono text-xs text-gray-500">{row.code}</td>
-                      <td className="px-3 py-1.5 text-xs">
-                        <div className="font-medium">{row.name}</div>
-                        {row.name_id && <div className="text-[10px] text-gray-400">{row.name_id}</div>}
-                      </td>
-                      <td className="px-3 py-1.5 text-right text-xs text-blue-700 tabular-nums">
-                        {row.balance > 0 ? `Rp ${fmt(row.balance)}` : ''}
-                      </td>
-                      <td className="px-3 py-1.5 text-right text-xs text-green-700 tabular-nums">
-                        {row.balance < 0 ? `Rp ${fmt(Math.abs(row.balance))}` : ''}
-                      </td>
-                    </tr>
-                  ))}
-                  {trialBalance.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-3 py-8 text-center text-sm text-gray-400">
-                        No transactions in selected period
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-                <tfoot className="bg-blue-900 text-white font-bold">
-                  <tr>
-                    <td colSpan={2} className="px-3 py-2 text-right text-xs uppercase tracking-wide">Total</td>
-                    <td className="px-3 py-2 text-right text-xs tabular-nums">Rp {fmt(tbTotals.debit)}</td>
-                    <td className="px-3 py-2 text-right text-xs tabular-nums">Rp {fmt(tbTotals.credit)}</td>
-                  </tr>
-                  {Math.abs(tbTotals.debit - tbTotals.credit) > 0.02 && (
-                    <tr>
-                      <td colSpan={4} className="px-3 py-1 text-center text-[10px] bg-red-700">
-                        ⚠ Out of balance by Rp {fmt(Math.abs(tbTotals.debit - tbTotals.credit))}
-                      </td>
-                    </tr>
-                  )}
-                </tfoot>
-              </table>
             </div>
-          )}
+          </div>
 
-          {/* ═══════════════════════════════════════════
-              PROFIT & LOSS
-          ═══════════════════════════════════════════ */}
-          {reportType === 'pnl' && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-base">Profit & Loss — {fmtDate(dateRange.startDate)} to {fmtDate(dateRange.endDate)}</h3>
-                  <p className="text-xs text-gray-500 italic">Laporan Laba Rugi {fmtDate(dateRange.startDate)} s/d {fmtDate(dateRange.endDate)}</p>
-                </div>
-                <button onClick={exportPnL}
-                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50">
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-slate-700 text-white">
+                  <th className="px-3 py-2 text-left font-semibold w-20 text-[10px] uppercase tracking-wide">Code</th>
+                  <th className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wide">Account Name</th>
+                  <th className="px-3 py-2 text-right font-semibold text-[10px] uppercase tracking-wide w-32" colSpan={2}>Opening Balance</th>
+                  <th className="px-3 py-2 text-right font-semibold text-[10px] uppercase tracking-wide w-32" colSpan={2}>Period Movements</th>
+                  <th className="px-3 py-2 text-right font-semibold text-[10px] uppercase tracking-wide w-32" colSpan={2}>Closing Balance</th>
+                </tr>
+                <tr className="bg-slate-600 text-slate-200">
+                  <th className="px-3 py-1" />
+                  <th className="px-3 py-1" />
+                  <th className="px-3 py-1 text-right text-[10px] font-medium w-32">Debit</th>
+                  <th className="px-3 py-1 text-right text-[10px] font-medium w-32">Credit</th>
+                  <th className="px-3 py-1 text-right text-[10px] font-medium w-32">Debit</th>
+                  <th className="px-3 py-1 text-right text-[10px] font-medium w-32">Credit</th>
+                  <th className="px-3 py-1 text-right text-[10px] font-medium w-32">Debit</th>
+                  <th className="px-3 py-1 text-right text-[10px] font-medium w-32">Credit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {TB_SECTIONS.map(section => {
+                  const rows = mergedTB.filter(section.filter as (r: MergedTBRow) => boolean);
+                  if (rows.length === 0) return null;
+                  const isCollapsed = collapsedSections.has(section.id);
+                  const sDr = rows.reduce((s, r) => s + r.openingDr, 0);
+                  const sCr = rows.reduce((s, r) => s + r.openingCr, 0);
+                  const pDr = rows.reduce((s, r) => s + r.periodDr, 0);
+                  const pCr = rows.reduce((s, r) => s + r.periodCr, 0);
+                  const cDr = rows.reduce((s, r) => s + r.closingDr, 0);
+                  const cCr = rows.reduce((s, r) => s + r.closingCr, 0);
+                  const bgClass = SECTION_BG[section.color] || 'bg-gray-50 text-gray-700';
+                  const totalBgClass = SECTION_TOTAL_BG[section.color] || 'bg-gray-100 text-gray-800';
+                  return (
+                    <tbody key={section.id} className="border-t border-gray-200">
+                      {/* Section header */}
+                      <tr
+                        className={`${bgClass} cursor-pointer select-none`}
+                        onClick={() => toggleSection(section.id)}
+                      >
+                        <td className="px-3 py-2" colSpan={2}>
+                          <div className="flex items-center gap-1.5">
+                            {isCollapsed
+                              ? <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                              : <ChevronDown className="w-3.5 h-3.5 opacity-60" />}
+                            <span className="text-[10px] font-bold uppercase tracking-widest">{section.label}</span>
+                            <span className="text-[9px] opacity-60 ml-1">/ {section.labelId}</span>
+                            {isCollapsed && <span className="text-[9px] opacity-50 ml-2">({rows.length} accounts)</span>}
+                          </div>
+                        </td>
+                        <AmtCell value={isCollapsed ? sDr : 0} className="opacity-60" />
+                        <AmtCell value={isCollapsed ? sCr : 0} className="opacity-60" />
+                        <AmtCell value={isCollapsed ? pDr : 0} className="opacity-60" />
+                        <AmtCell value={isCollapsed ? pCr : 0} className="opacity-60" />
+                        <AmtCell value={isCollapsed ? cDr : 0} className="opacity-60" />
+                        <AmtCell value={isCollapsed ? cCr : 0} className="opacity-60" />
+                      </tr>
+
+                      {/* Account rows */}
+                      {!isCollapsed && rows.map(r => (
+                        <tr key={r.code} className="hover:bg-slate-50 border-t border-gray-50">
+                          <td className="px-3 py-1.5 font-mono text-[10px] text-gray-400">{r.code}</td>
+                          <td className="pl-6 pr-3 py-1.5 text-xs text-gray-700">
+                            {onDrillDown ? (
+                              <button onClick={() => onDrillDown(r.code, r.name)} className="hover:text-blue-600 hover:underline text-left">
+                                {r.name}
+                                {r.name_id && <span className="text-[10px] text-gray-400 ml-1.5">({r.name_id})</span>}
+                              </button>
+                            ) : (
+                              <>
+                                {r.name}
+                                {r.name_id && <span className="text-[10px] text-gray-400 ml-1.5">({r.name_id})</span>}
+                              </>
+                            )}
+                          </td>
+                          <AmtCell value={r.openingDr} />
+                          <AmtCell value={r.openingCr} />
+                          <AmtCell value={r.periodDr} />
+                          <AmtCell value={r.periodCr} />
+                          <AmtCell value={r.closingDr} />
+                          <AmtCell value={r.closingCr} />
+                        </tr>
+                      ))}
+
+                      {/* Section subtotal */}
+                      {!isCollapsed && (
+                        <tr className={totalBgClass}>
+                          <td className="px-3 py-1.5 text-right font-bold text-[10px] uppercase tracking-wide" colSpan={2}>
+                            Total {section.label}
+                          </td>
+                          {[sDr, sCr, pDr, pCr, cDr, cCr].map((v, i) => (
+                            <td key={i} className="px-3 py-1.5 text-right text-xs font-bold tabular-nums">{v ? fmt(v) : '—'}</td>
+                          ))}
+                        </tr>
+                      )}
+                    </tbody>
+                  );
+                })}
+              </tbody>
+
+              {/* Grand Total */}
+              <tfoot>
+                <tr className="bg-slate-800 text-white font-bold border-t-2 border-slate-600">
+                  <td className="px-3 py-2.5 text-right text-[10px] uppercase tracking-widest" colSpan={2}>GRAND TOTAL</td>
+                  {[tbGrandTotals.openingDr, tbGrandTotals.openingCr, tbGrandTotals.periodDr, tbGrandTotals.periodCr, tbGrandTotals.closingDr, tbGrandTotals.closingCr].map((v, i) => (
+                    <td key={i} className="px-3 py-2.5 text-right text-xs tabular-nums">{fmt(v)}</td>
+                  ))}
+                </tr>
+                {(() => {
+                  const closingDiff = Math.abs(tbGrandTotals.closingDr - tbGrandTotals.closingCr);
+                  return closingDiff > 0.5 ? (
+                    <tr className="bg-red-700 text-white text-center">
+                      <td colSpan={8} className="py-1.5 text-[10px] font-medium">
+                        ⚠ Closing balance out of balance — difference: Rp {fmt2(closingDiff)}
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr className="bg-green-700 text-white text-center">
+                      <td colSpan={8} className="py-1.5 text-[10px] font-medium">
+                        ✓ Trial Balance is balanced — Closing Dr = Closing Cr
+                      </td>
+                    </tr>
+                  );
+                })()}
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          PROFIT & LOSS
+      ═══════════════════════════════════════════════════════════════════ */}
+      {reportType === 'pnl' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden print:shadow-none print:border-0">
+          <div className="bg-slate-800 text-white px-5 py-3 print:bg-white print:text-gray-900 print:border-b-2 print:border-gray-800">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 print:text-gray-500">PT Anzen Koorporasi Indonesia</p>
+                <h2 className="text-base font-bold mt-0.5">Profit & Loss Statement</h2>
+                <p className="text-xs text-slate-300 print:text-gray-600">
+                  For the period {fmtDate(dateRange.startDate)} to {fmtDate(dateRange.endDate)}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 print:hidden">
+                <button onClick={() => window.print()} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded text-white">
+                  <Printer className="w-3.5 h-3.5" /> Print
+                </button>
+                <button onClick={exportPnL} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-green-700 hover:bg-green-600 rounded text-white">
                   <Download className="w-3.5 h-3.5" /> Excel
                 </button>
               </div>
+            </div>
+          </div>
 
-              <div className="p-4 max-w-2xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 z-10 bg-slate-700 text-white">
+                <tr>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide w-16">Code</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide">Description</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide w-40">Amount (Rp)</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide w-20">% Rev</th>
+                </tr>
+              </thead>
+              <tbody>
 
                 {/* REVENUE */}
-                <div className="mb-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-green-700 mb-1">Revenue (Pendapatan)</p>
-                  <table className="w-full">
-                    <tbody>
-                      {revenueRows.map(row => (
-                        <tr key={row.code} className="hover:bg-gray-50">
-                          <td className="py-0.5 font-mono text-[10px] text-gray-400 w-16">{row.code}</td>
-                          <td className="py-0.5 text-xs pl-1">{row.name}</td>
-                          <td className="py-0.5 text-right text-xs tabular-nums text-gray-800">Rp {fmt(Math.abs(row.balance))}</td>
-                        </tr>
-                      ))}
-                      {contraRevRows.map(row => (
-                        <tr key={row.code} className="text-gray-500 hover:bg-gray-50">
-                          <td className="py-0.5 font-mono text-[10px] w-16">{row.code}</td>
-                          <td className="py-0.5 text-xs pl-1">Less: {row.name}</td>
-                          <td className="py-0.5 text-right text-xs tabular-nums text-red-500">({fmt(Math.abs(row.balance))})</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t border-gray-300 font-semibold bg-green-50">
-                        <td colSpan={2} className="py-1.5 text-xs pl-1">Net Revenue</td>
-                        <td className="py-1.5 text-right text-xs font-bold text-green-700 tabular-nums">Rp {fmt(netRevenue)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
+                <tr className="bg-green-50 cursor-pointer select-none" onClick={() => toggleSection('pnl-revenue')}>
+                  <td colSpan={4} className="px-3 py-2">
+                    <div className="flex items-center gap-1.5">
+                      {collapsedSections.has('pnl-revenue') ? <ChevronRight className="w-3.5 h-3.5 text-green-600 opacity-70" /> : <ChevronDown className="w-3.5 h-3.5 text-green-600 opacity-70" />}
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-green-800">Revenue (Pendapatan)</span>
+                    </div>
+                  </td>
+                </tr>
+                {!collapsedSections.has('pnl-revenue') && revenueRows.map(r => <PnLAccountRow key={r.code} row={r} getAmt={r => Math.abs(r.balance)} />)}
+                {!collapsedSections.has('pnl-revenue') && contraRevRows.length > 0 && contraRevRows.map(r => <PnLAccountRow key={r.code} row={r} getAmt={r => -Math.abs(r.balance)} />)}
+
+                {/* NET REVENUE subtotal */}
+                <tr className="bg-green-100 border-t border-green-300">
+                  <td />
+                  <td className="px-3 py-2 text-xs font-bold text-green-900">Net Revenue</td>
+                  <td className="px-3 py-2 text-right text-xs font-bold text-green-900 tabular-nums">Rp {fmt(netRevenue)}</td>
+                  <td className="px-3 py-2 text-right text-[10px] text-green-700">100.0%</td>
+                </tr>
 
                 {/* COGS */}
                 {cogsRows.length > 0 && (
-                  <div className="mb-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-orange-700 mb-1">Cost of Goods Sold (HPP)</p>
-                    <table className="w-full">
-                      <tbody>
-                        {cogsRows.map(row => (
-                          <tr key={row.code} className="hover:bg-gray-50">
-                            <td className="py-0.5 font-mono text-[10px] text-gray-400 w-16">{row.code}</td>
-                            <td className="py-0.5 text-xs pl-1">{row.name}</td>
-                            <td className="py-0.5 text-right text-xs tabular-nums text-gray-800">Rp {fmt(row.balance)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t border-gray-300 font-semibold bg-orange-50">
-                          <td colSpan={2} className="py-1.5 text-xs pl-1">Total COGS</td>
-                          <td className="py-1.5 text-right text-xs font-bold text-orange-700 tabular-nums">Rp {fmt(totalCOGS)}</td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
+                  <>
+                    <tr className="bg-orange-50 cursor-pointer select-none" onClick={() => toggleSection('pnl-cogs')}>
+                      <td colSpan={4} className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          {collapsedSections.has('pnl-cogs') ? <ChevronRight className="w-3.5 h-3.5 text-orange-600 opacity-70" /> : <ChevronDown className="w-3.5 h-3.5 text-orange-600 opacity-70" />}
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-orange-800">Less: Cost of Goods Sold (HPP)</span>
+                        </div>
+                      </td>
+                    </tr>
+                    {!collapsedSections.has('pnl-cogs') && cogsRows.map(r => <PnLAccountRow key={r.code} row={r} getAmt={r => r.balance} />)}
+                    <tr className="bg-orange-50 border-t border-orange-200">
+                      <td />
+                      <td className="px-3 py-2 text-xs font-semibold text-orange-900">Total COGS</td>
+                      <td className="px-3 py-2 text-right text-xs font-semibold text-orange-900 tabular-nums">({fmt(totalCOGS)})</td>
+                      <td className="px-3 py-2 text-right text-[10px] text-orange-700">{pctStr(totalCOGS, netRevenue)}</td>
+                    </tr>
+                  </>
                 )}
 
                 {/* GROSS PROFIT */}
-                <div className={`px-3 py-2 rounded mb-3 ${grossProfit >= 0 ? 'bg-blue-50 border border-blue-200' : 'bg-red-50 border border-red-200'}`}>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-gray-800">Gross Profit (Laba Kotor)</span>
-                    <span className={`text-sm font-bold tabular-nums ${grossProfit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                      Rp {fmt(grossProfit)}
-                    </span>
-                  </div>
-                  {netRevenue > 0 && (
-                    <div className="text-[10px] text-gray-500 mt-0.5">
-                      Gross margin: {((grossProfit / netRevenue) * 100).toFixed(1)}%
-                    </div>
-                  )}
-                </div>
+                <tr className={`border-t-2 ${grossProfit >= 0 ? 'bg-blue-100 border-blue-400' : 'bg-red-100 border-red-400'}`}>
+                  <td colSpan={2} className={`px-3 py-2.5 text-sm font-bold ${grossProfit >= 0 ? 'text-blue-900' : 'text-red-900'}`}>
+                    Gross Profit (Laba Kotor)
+                  </td>
+                  <td className={`px-3 py-2.5 text-right text-sm font-bold tabular-nums ${grossProfit >= 0 ? 'text-blue-900' : 'text-red-900'}`}>
+                    Rp {fmt(grossProfit)}
+                  </td>
+                  <td className={`px-3 py-2.5 text-right text-[10px] font-semibold ${grossProfit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                    {pctStr(grossProfit, netRevenue)}
+                  </td>
+                </tr>
 
                 {/* OPERATING EXPENSES */}
                 {opexRows.length > 0 && (
-                  <div className="mb-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-red-700 mb-1">Operating Expenses (Beban Operasional)</p>
-                    <table className="w-full">
-                      <tbody>
-                        {opexRows.map(row => (
-                          <tr key={row.code} className="hover:bg-gray-50">
-                            <td className="py-0.5 font-mono text-[10px] text-gray-400 w-16">{row.code}</td>
-                            <td className="py-0.5 text-xs pl-1">{row.name}</td>
-                            <td className="py-0.5 text-right text-xs tabular-nums text-gray-800">Rp {fmt(row.balance)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t border-gray-300 font-semibold bg-red-50">
-                          <td colSpan={2} className="py-1.5 text-xs pl-1">Total Operating Expenses</td>
-                          <td className="py-1.5 text-right text-xs font-bold text-red-700 tabular-nums">Rp {fmt(totalOpex)}</td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
+                  <>
+                    <tr className="bg-red-50 cursor-pointer select-none" onClick={() => toggleSection('pnl-opex')}>
+                      <td colSpan={4} className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          {collapsedSections.has('pnl-opex') ? <ChevronRight className="w-3.5 h-3.5 text-red-500 opacity-70" /> : <ChevronDown className="w-3.5 h-3.5 text-red-500 opacity-70" />}
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-red-800">Less: Operating Expenses (Beban Operasional)</span>
+                        </div>
+                      </td>
+                    </tr>
+                    {!collapsedSections.has('pnl-opex') && opexRows.map(r => <PnLAccountRow key={r.code} row={r} getAmt={r => r.balance} />)}
+                    <tr className="bg-red-50 border-t border-red-200">
+                      <td />
+                      <td className="px-3 py-2 text-xs font-semibold text-red-900">Total Operating Expenses</td>
+                      <td className="px-3 py-2 text-right text-xs font-semibold text-red-900 tabular-nums">({fmt(totalOpex)})</td>
+                      <td className="px-3 py-2 text-right text-[10px] text-red-700">{pctStr(totalOpex, netRevenue)}</td>
+                    </tr>
+                  </>
                 )}
 
                 {/* OPERATING INCOME */}
-                <div className={`px-3 py-2 rounded mb-3 border ${operatingIncome >= 0 ? 'bg-indigo-50 border-indigo-200' : 'bg-red-50 border-red-200'}`}>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-gray-800">Operating Income (Laba Usaha)</span>
-                    <span className={`text-sm font-bold tabular-nums ${operatingIncome >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>
-                      Rp {fmt(operatingIncome)}
-                    </span>
-                  </div>
-                </div>
+                <tr className={`border-t-2 ${operatingIncome >= 0 ? 'bg-indigo-100 border-indigo-400' : 'bg-red-100 border-red-400'}`}>
+                  <td colSpan={2} className={`px-3 py-2 text-xs font-bold ${operatingIncome >= 0 ? 'text-indigo-900' : 'text-red-900'}`}>
+                    Operating Income (Laba Usaha)
+                  </td>
+                  <td className={`px-3 py-2 text-right text-sm font-bold tabular-nums ${operatingIncome >= 0 ? 'text-indigo-900' : 'text-red-900'}`}>
+                    Rp {fmt(operatingIncome)}
+                  </td>
+                  <td className={`px-3 py-2 text-right text-[10px] font-semibold ${operatingIncome >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>
+                    {pctStr(operatingIncome, netRevenue)}
+                  </td>
+                </tr>
 
                 {/* OTHER EXPENSES */}
                 {otherExpRows.length > 0 && (
-                  <div className="mb-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 mb-1">Other Expenses (Beban Lain-lain)</p>
-                    <table className="w-full">
-                      <tbody>
-                        {otherExpRows.map(row => (
-                          <tr key={row.code} className="hover:bg-gray-50">
-                            <td className="py-0.5 font-mono text-[10px] text-gray-400 w-16">{row.code}</td>
-                            <td className="py-0.5 text-xs pl-1">{row.name}</td>
-                            <td className="py-0.5 text-right text-xs tabular-nums text-gray-800">Rp {fmt(row.balance)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <>
+                    <tr className="bg-gray-50 cursor-pointer select-none" onClick={() => toggleSection('pnl-other')}>
+                      <td colSpan={4} className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          {collapsedSections.has('pnl-other') ? <ChevronRight className="w-3.5 h-3.5 text-gray-500 opacity-70" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-500 opacity-70" />}
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-700">Less: Other Expenses (Beban Lain-lain)</span>
+                        </div>
+                      </td>
+                    </tr>
+                    {!collapsedSections.has('pnl-other') && otherExpRows.map(r => <PnLAccountRow key={r.code} row={r} getAmt={r => r.balance} />)}
+                    <tr className="bg-gray-50 border-t border-gray-200">
+                      <td />
+                      <td className="px-3 py-2 text-xs font-semibold text-gray-700">Total Other Expenses</td>
+                      <td className="px-3 py-2 text-right text-xs font-semibold text-gray-700 tabular-nums">({fmt(totalOtherExp)})</td>
+                      <td className="px-3 py-2 text-right text-[10px] text-gray-500">{pctStr(totalOtherExp, netRevenue)}</td>
+                    </tr>
+                  </>
                 )}
 
-                {/* NET INCOME */}
-                <div className={`px-4 py-3 rounded-lg ${netIncome >= 0 ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300'}`}>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <span className="font-bold text-sm text-gray-900">Net Income (Laba Bersih)</span>
-                      <span className="text-[10px] text-gray-500 ml-1.5 italic">Provisional</span>
-                    </div>
-                    <span className={`font-bold text-base tabular-nums ${netIncome >= 0 ? 'text-green-800' : 'text-red-800'}`}>
-                      Rp {fmt(netIncome)}
-                    </span>
-                  </div>
-                  {netRevenue > 0 && (
-                    <div className="text-[10px] text-gray-500 mt-0.5 text-right">
-                      Net margin: {((netIncome / netRevenue) * 100).toFixed(1)}%
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+              </tbody>
 
-          {/* ═══════════════════════════════════════════
-              BALANCE SHEET
-          ═══════════════════════════════════════════ */}
-          {reportType === 'balance_sheet' && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-base">Balance Sheet — As of {fmtDate(dateRange.endDate)}</h3>
-                  <p className="text-xs text-gray-500 italic">Neraca per {fmtDate(dateRange.endDate)} (kumulatif)</p>
-                </div>
-                <button onClick={exportBalanceSheet}
-                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50">
+              {/* NET INCOME footer */}
+              <tfoot>
+                <tr className={`border-t-2 ${netIncome >= 0 ? 'bg-green-700 border-green-500' : 'bg-red-700 border-red-500'} text-white`}>
+                  <td colSpan={2} className="px-3 py-3 text-sm font-bold uppercase tracking-wide">
+                    Net Income — Provisional
+                    <span className="block text-[10px] font-normal opacity-75">Laba Bersih (Sementara)</span>
+                  </td>
+                  <td className="px-3 py-3 text-right text-base font-bold tabular-nums">
+                    Rp {fmt(netIncome)}
+                  </td>
+                  <td className="px-3 py-3 text-right text-xs font-semibold">
+                    {pctStr(netIncome, netRevenue)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          BALANCE SHEET
+      ═══════════════════════════════════════════════════════════════════ */}
+      {reportType === 'balance_sheet' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden print:shadow-none print:border-0">
+          <div className="bg-slate-800 text-white px-5 py-3 print:bg-white print:text-gray-900 print:border-b-2 print:border-gray-800">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 print:text-gray-500">PT Anzen Koorporasi Indonesia</p>
+                <h2 className="text-base font-bold mt-0.5">Balance Sheet</h2>
+                <p className="text-xs text-slate-300 print:text-gray-600">As at {fmtDate(dateRange.endDate)}</p>
+              </div>
+              <div className="flex items-center gap-2 print:hidden">
+                <button onClick={() => window.print()} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded text-white">
+                  <Printer className="w-3.5 h-3.5" /> Print
+                </button>
+                <button onClick={exportBalanceSheet} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-green-700 hover:bg-green-600 rounded text-white">
                   <Download className="w-3.5 h-3.5" /> Excel
                 </button>
               </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-gray-200">
-
-                {/* ── ASSETS ── */}
-                <div className="p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-blue-700 mb-2">Assets (Aset)</p>
-
-                  {Array.from(assetGroups.entries()).map(([group, rows]) => {
-                    const subtotal = rows.reduce((s, r) => s + r.balance, 0);
-                    return (
-                      <div key={group} className="mb-3">
-                        <p className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">{group}</p>
-                        <table className="w-full">
-                          <tbody>
-                            {rows.map(row => (
-                              <tr key={row.code} className="hover:bg-gray-50">
-                                <td className="py-0.5 font-mono text-[10px] text-gray-400 w-16">{row.code}</td>
-                                <td className="py-0.5 text-xs pl-1">{row.name}</td>
-                                <td className="py-0.5 text-right text-xs tabular-nums text-blue-700">Rp {fmt(row.balance)}</td>
-                              </tr>
-                            ))}
-                            {/* Contra accounts that belong to this group */}
-                            {bsContraAssets.filter(r => r.account_group?.includes(group.includes('Fixed') ? 'Fixed' : group.includes('Current') ? 'Current' : '') || group === 'Fixed Assets').map(row => (
-                              <tr key={row.code} className="text-gray-400 hover:bg-gray-50">
-                                <td className="py-0.5 font-mono text-[10px] w-16">{row.code}</td>
-                                <td className="py-0.5 text-xs pl-1 italic">Less: {row.name}</td>
-                                <td className="py-0.5 text-right text-xs tabular-nums">({fmt(Math.abs(row.balance))})</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                          <tfoot>
-                            <tr className="border-t border-gray-200 bg-blue-50">
-                              <td colSpan={2} className="py-1 text-[10px] font-semibold pl-1">Total {group}</td>
-                              <td className="py-1 text-right text-[10px] font-bold text-blue-700 tabular-nums">Rp {fmt(subtotal)}</td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
-                    );
-                  })}
-
-                  <div className="mt-3 pt-2 border-t-2 border-blue-300 bg-blue-50 px-2 py-2 rounded">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-blue-900">TOTAL ASSETS (Total Aset)</span>
-                      <span className="text-sm font-bold text-blue-900 tabular-nums">Rp {fmt(totalAssets)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── LIABILITIES + EQUITY ── */}
-                <div className="p-4">
-
-                  {/* Liabilities */}
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-red-700 mb-2">Liabilities (Kewajiban)</p>
-
-                  {Array.from(liabGroups.entries()).map(([group, rows]) => {
-                    const subtotal = rows.reduce((s, r) => s + Math.abs(r.balance), 0);
-                    return (
-                      <div key={group} className="mb-3">
-                        <p className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">{group}</p>
-                        <table className="w-full">
-                          <tbody>
-                            {rows.map(row => (
-                              <tr key={row.code} className="hover:bg-gray-50">
-                                <td className="py-0.5 font-mono text-[10px] text-gray-400 w-16">{row.code}</td>
-                                <td className="py-0.5 text-xs pl-1">{row.name}</td>
-                                <td className="py-0.5 text-right text-xs tabular-nums text-red-700">Rp {fmt(Math.abs(row.balance))}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                          <tfoot>
-                            <tr className="border-t border-gray-200 bg-red-50">
-                              <td colSpan={2} className="py-1 text-[10px] font-semibold pl-1">Total {group}</td>
-                              <td className="py-1 text-right text-[10px] font-bold text-red-700 tabular-nums">Rp {fmt(subtotal)}</td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
-                    );
-                  })}
-
-                  <div className="pt-2 border-t border-red-200 bg-red-50 px-2 py-1 rounded mb-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-red-900">Total Liabilities</span>
-                      <span className="text-xs font-bold text-red-900 tabular-nums">Rp {fmt(totalLiabilities)}</span>
-                    </div>
-                  </div>
-
-                  {/* Equity */}
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-purple-700 mb-2">Equity (Modal)</p>
-                  <table className="w-full mb-2">
-                    <tbody>
-                      {bsEquityRows.map(row => {
-                        const displayAmt = row.account_type === 'equity'
-                          ? Math.abs(row.balance)
-                          : -Math.abs(row.balance);
-                        return (
-                          <tr key={row.code} className="hover:bg-gray-50">
-                            <td className="py-0.5 font-mono text-[10px] text-gray-400 w-16">{row.code}</td>
-                            <td className="py-0.5 text-xs pl-1">{row.name}</td>
-                            <td className={`py-0.5 text-right text-xs tabular-nums ${displayAmt >= 0 ? 'text-purple-700' : 'text-red-600'}`}>
-                              {displayAmt < 0 ? `(Rp ${fmt(Math.abs(displayAmt))})` : `Rp ${fmt(displayAmt)}`}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      <tr className="hover:bg-gray-50">
-                        <td className="py-0.5 font-mono text-[10px] text-gray-400 w-16" />
-                        <td className="py-0.5 text-xs pl-1 italic">Current Period Earnings</td>
-                        <td className={`py-0.5 text-right text-xs tabular-nums ${netIncome >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                          {netIncome < 0 ? `(Rp ${fmt(Math.abs(netIncome))})` : `Rp ${fmt(netIncome)}`}
-                        </td>
-                      </tr>
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t border-purple-200 bg-purple-50">
-                        <td colSpan={2} className="py-1 text-xs font-bold pl-1 text-purple-900">Total Equity</td>
-                        <td className="py-1 text-right text-xs font-bold text-purple-900 tabular-nums">Rp {fmt(totalEquity + netIncome)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-
-                  {/* Balance check */}
-                  <div className={`mt-3 px-3 py-2 rounded-lg border ${balanceCheck < 0.02 ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}`}>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-gray-800">Total Liabilities + Equity</span>
-                      <span className="text-sm font-bold text-gray-900 tabular-nums">Rp {fmt(totalLiabEquity)}</span>
-                    </div>
-                    {balanceCheck > 0.02 ? (
-                      <p className="text-[10px] text-red-600 mt-0.5">
-                        ⚠ Out of balance — difference: Rp {fmt(balanceCheck)}
-                      </p>
-                    ) : (
-                      <p className="text-[10px] text-green-600 mt-0.5">✓ Assets = Liabilities + Equity</p>
-                    )}
-                  </div>
-                </div>
-
-              </div>
             </div>
-          )}
-        </>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <colgroup>
+                <col className="w-16" />
+                <col />
+                <col className="w-48" />
+              </colgroup>
+              <tbody>
+
+                {/* ── ASSETS ─────────────────────────────────────────── */}
+                <tr className="bg-slate-700 text-white">
+                  <td colSpan={3} className="px-5 py-2 text-[10px] font-bold uppercase tracking-widest">ASSETS (ASET)</td>
+                </tr>
+
+                {/* Current Assets */}
+                <tr className="bg-blue-50 cursor-pointer" onClick={() => toggleSection('bs-current-assets')}>
+                  <td colSpan={3} className="px-4 py-1.5">
+                    <div className="flex items-center gap-1.5">
+                      {collapsedSections.has('bs-current-assets') ? <ChevronRight className="w-3.5 h-3.5 text-blue-600 opacity-70" /> : <ChevronDown className="w-3.5 h-3.5 text-blue-600 opacity-70" />}
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-800">Current Assets (Aset Lancar)</span>
+                    </div>
+                  </td>
+                </tr>
+                {!collapsedSections.has('bs-current-assets') && assetCurrentRows.map(r => <BSRow key={r.code} row={r} amount={r.balance} />)}
+                <tr className="bg-blue-100 border-t border-blue-300">
+                  <td />
+                  <td className="px-2 py-2 text-xs font-bold text-blue-900">Total Current Assets</td>
+                  <td className={`px-4 py-2 text-right text-xs font-bold tabular-nums ${totalCurrentAssets < 0 ? 'text-red-700' : 'text-blue-900'}`}>
+                    {totalCurrentAssets < 0 ? `(Rp ${fmt(Math.abs(totalCurrentAssets))})` : `Rp ${fmt(totalCurrentAssets)}`}
+                  </td>
+                </tr>
+
+                {/* Non-current Assets */}
+                {assetNonCurrRows.length > 0 && (
+                  <>
+                    <tr className="bg-blue-50 cursor-pointer" onClick={() => toggleSection('bs-noncurr-assets')}>
+                      <td colSpan={3} className="px-4 py-1.5">
+                        <div className="flex items-center gap-1.5">
+                          {collapsedSections.has('bs-noncurr-assets') ? <ChevronRight className="w-3.5 h-3.5 text-blue-600 opacity-70" /> : <ChevronDown className="w-3.5 h-3.5 text-blue-600 opacity-70" />}
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-800">Non-current Assets (Aset Tidak Lancar)</span>
+                        </div>
+                      </td>
+                    </tr>
+                    {!collapsedSections.has('bs-noncurr-assets') && assetNonCurrRows.map(r => <BSRow key={r.code} row={r} amount={r.balance} />)}
+                    {!collapsedSections.has('bs-noncurr-assets') && bsContraAssets.map(r => <BSRow key={r.code} row={r} amount={-Math.abs(r.balance)} />)}
+                    <tr className="bg-blue-100 border-t border-blue-300">
+                      <td />
+                      <td className="px-2 py-2 text-xs font-bold text-blue-900">Total Non-current Assets</td>
+                      <td className={`px-4 py-2 text-right text-xs font-bold tabular-nums ${totalNonCurrAssets < 0 ? 'text-red-700' : 'text-blue-900'}`}>
+                        {totalNonCurrAssets < 0 ? `(Rp ${fmt(Math.abs(totalNonCurrAssets))})` : `Rp ${fmt(totalNonCurrAssets)}`}
+                      </td>
+                    </tr>
+                  </>
+                )}
+
+                {/* Total Assets */}
+                <tr className="bg-blue-900 text-white border-t-2 border-blue-700">
+                  <td colSpan={2} className="px-5 py-2.5 text-xs font-bold uppercase tracking-wide">TOTAL ASSETS</td>
+                  <td className="px-4 py-2.5 text-right text-sm font-bold tabular-nums">Rp {fmt(totalAssets)}</td>
+                </tr>
+
+                {/* Spacer */}
+                <tr><td colSpan={3} className="py-1 bg-gray-50 border-t border-gray-200" /></tr>
+
+                {/* ── LIABILITIES ──────────────────────────────────── */}
+                <tr className="bg-slate-700 text-white">
+                  <td colSpan={3} className="px-5 py-2 text-[10px] font-bold uppercase tracking-widest">LIABILITIES (KEWAJIBAN)</td>
+                </tr>
+
+                {/* Current Liabilities */}
+                {liabCurrentRows.length > 0 && (
+                  <>
+                    <tr className="bg-red-50 cursor-pointer" onClick={() => toggleSection('bs-curr-liab')}>
+                      <td colSpan={3} className="px-4 py-1.5">
+                        <div className="flex items-center gap-1.5">
+                          {collapsedSections.has('bs-curr-liab') ? <ChevronRight className="w-3.5 h-3.5 text-red-500 opacity-70" /> : <ChevronDown className="w-3.5 h-3.5 text-red-500 opacity-70" />}
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-red-800">Current Liabilities (Kewajiban Lancar)</span>
+                        </div>
+                      </td>
+                    </tr>
+                    {!collapsedSections.has('bs-curr-liab') && liabCurrentRows.map(r => <BSRow key={r.code} row={r} amount={Math.abs(r.balance)} />)}
+                    <tr className="bg-red-100 border-t border-red-300">
+                      <td />
+                      <td className="px-2 py-2 text-xs font-bold text-red-900">Total Current Liabilities</td>
+                      <td className="px-4 py-2 text-right text-xs font-bold text-red-900 tabular-nums">Rp {fmt(totalCurrentLiab)}</td>
+                    </tr>
+                  </>
+                )}
+
+                {/* Long-term Liabilities */}
+                {liabLongtermRows.length > 0 && (
+                  <>
+                    <tr className="bg-red-50 cursor-pointer" onClick={() => toggleSection('bs-lt-liab')}>
+                      <td colSpan={3} className="px-4 py-1.5">
+                        <div className="flex items-center gap-1.5">
+                          {collapsedSections.has('bs-lt-liab') ? <ChevronRight className="w-3.5 h-3.5 text-red-500 opacity-70" /> : <ChevronDown className="w-3.5 h-3.5 text-red-500 opacity-70" />}
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-red-800">Long-term Liabilities (Kewajiban Jangka Panjang)</span>
+                        </div>
+                      </td>
+                    </tr>
+                    {!collapsedSections.has('bs-lt-liab') && liabLongtermRows.map(r => <BSRow key={r.code} row={r} amount={Math.abs(r.balance)} />)}
+                    <tr className="bg-red-100 border-t border-red-300">
+                      <td />
+                      <td className="px-2 py-2 text-xs font-bold text-red-900">Total Long-term Liabilities</td>
+                      <td className="px-4 py-2 text-right text-xs font-bold text-red-900 tabular-nums">Rp {fmt(totalLongtermLiab)}</td>
+                    </tr>
+                  </>
+                )}
+
+                {/* Total Liabilities */}
+                <tr className="bg-red-900 text-white border-t-2 border-red-700">
+                  <td colSpan={2} className="px-5 py-2.5 text-xs font-bold uppercase tracking-wide">TOTAL LIABILITIES</td>
+                  <td className="px-4 py-2.5 text-right text-sm font-bold tabular-nums">Rp {fmt(totalLiabilities)}</td>
+                </tr>
+
+                <tr><td colSpan={3} className="py-1 bg-gray-50 border-t border-gray-200" /></tr>
+
+                {/* ── EQUITY ────────────────────────────────────────── */}
+                <tr className="bg-slate-700 text-white">
+                  <td colSpan={3} className="px-5 py-2 text-[10px] font-bold uppercase tracking-widest">EQUITY (MODAL)</td>
+                </tr>
+
+                <tr className="bg-purple-50 cursor-pointer" onClick={() => toggleSection('bs-equity')}>
+                  <td colSpan={3} className="px-4 py-1.5">
+                    <div className="flex items-center gap-1.5">
+                      {collapsedSections.has('bs-equity') ? <ChevronRight className="w-3.5 h-3.5 text-purple-500 opacity-70" /> : <ChevronDown className="w-3.5 h-3.5 text-purple-500 opacity-70" />}
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-purple-800">Equity Components</span>
+                    </div>
+                  </td>
+                </tr>
+                {!collapsedSections.has('bs-equity') && bsEquityRows.map(r => {
+                  const amt = r.account_type === 'equity' ? Math.abs(r.balance) : -Math.abs(r.balance);
+                  return <BSRow key={r.code} row={r} amount={amt} />;
+                })}
+                {!collapsedSections.has('bs-equity') && (
+                  <tr className="hover:bg-gray-50">
+                    <td className="pl-10 pr-2 py-1 text-[10px] font-mono text-gray-400 w-16">3300</td>
+                    <td className="px-2 py-1 text-xs text-gray-700 italic">Current Year Earnings (Provisional)</td>
+                    <td className={`px-4 py-1 text-right text-xs tabular-nums w-44 ${netIncome < 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                      {netIncome < 0 ? `(Rp ${fmt(Math.abs(netIncome))})` : `Rp ${fmt(netIncome)}`}
+                    </td>
+                  </tr>
+                )}
+                <tr className="bg-purple-100 border-t border-purple-300">
+                  <td />
+                  <td className="px-2 py-2 text-xs font-bold text-purple-900">Total Equity</td>
+                  <td className={`px-4 py-2 text-right text-xs font-bold tabular-nums ${totalEquity < 0 ? 'text-red-700' : 'text-purple-900'}`}>
+                    {totalEquity < 0 ? `(Rp ${fmt(Math.abs(totalEquity))})` : `Rp ${fmt(totalEquity)}`}
+                  </td>
+                </tr>
+
+                {/* Total Liabilities + Equity */}
+                <tr className="bg-purple-900 text-white border-t-2 border-purple-700">
+                  <td colSpan={2} className="px-5 py-2.5 text-xs font-bold uppercase tracking-wide">TOTAL LIABILITIES + EQUITY</td>
+                  <td className="px-4 py-2.5 text-right text-sm font-bold tabular-nums">Rp {fmt(totalLiabEquity)}</td>
+                </tr>
+
+                {/* Balance Check */}
+                <tr className={balanceCheck < 0.5 ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>
+                  <td colSpan={3} className="px-5 py-2 text-center text-xs font-medium">
+                    {balanceCheck < 0.5
+                      ? `✓ Balanced — Assets (Rp ${fmt(totalAssets)}) = Liabilities + Equity (Rp ${fmt(totalLiabEquity)})`
+                      : `⚠ Out of balance — Difference: Rp ${fmt2(balanceCheck)}`}
+                  </td>
+                </tr>
+
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
+
     </div>
   );
 }
