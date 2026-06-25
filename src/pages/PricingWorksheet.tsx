@@ -630,7 +630,7 @@ export function PricingWorksheet() {
       <div className="p-4 md:p-6">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div>
-            <h1 className="text-lg font-semibold text-gray-900">Kunal Pricing</h1>
+            <h1 className="text-lg font-semibold text-gray-900">Pricing Worksheet</h1>
             <p className="text-xs text-gray-500 mt-0.5">Enter final purchase and selling prices on CRM inquiry rows. Quote status stays not sent until customer quote email is sent.</p>
           </div>
           <button onClick={load} disabled={loading}

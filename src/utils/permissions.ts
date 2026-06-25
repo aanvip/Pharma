@@ -8,7 +8,7 @@ export interface ModulePermission {
 
 /**
  * Module catalogue with the clean Pricing labels matching the sidebar:
- *   Pricing Overview · Anvi Sourcing · Kunal Pricing · Price History
+ *   Pricing Overview · Sourcing Outbox · Pricing Worksheet · Price History
  *
  * The older internal IDs (price-requests, pricing-desk, pricing-parser-review)
  * are kept as routes for admin/debug but marked `advanced: true` so the
@@ -36,8 +36,8 @@ export const ALL_MODULES = [
 
   // Pricing — clean labels surfaced in sidebar + permission UI
   { id: 'pricing-dashboard',     label: 'Pricing Overview' },
-  { id: 'sourcing-outbox',       label: 'Anvi Sourcing' },
-  { id: 'pricing-worksheet',     label: 'Kunal Pricing' },
+  { id: 'sourcing-outbox',       label: 'Sourcing Outbox' },
+  { id: 'pricing-worksheet',     label: 'Pricing Worksheet' },
   { id: 'pricing-ledger',        label: 'Price History' },
 
   // Pricing — advanced / debug (hidden from normal permission grid)
@@ -54,7 +54,7 @@ export type ModuleId = typeof ALL_MODULES[number]['id'];
  * Default per-role module access. These should match the live business rules:
  *   admin   — everything
  *   manager — full Pricing group (incl. advanced) for oversight
- *   sales   — CRM + Pricing Overview only (no Anvi Sourcing, no Kunal Pricing,
+ *   sales   — CRM + Pricing Overview only (no Sourcing Outbox, no Pricing Worksheet,
  *             no Price History, no advanced pricing)
  *   warehouse / accounts / auditor_ca — no pricing modules at all
  */
@@ -82,7 +82,7 @@ const ROLE_DEFAULT_MODULES: Record<UserRole, ModuleId[]> = {
     'delivery-challan', 'sales', 'purchase-orders', 'import-requirements',
     'price-calculator', 'crm', 'command-center', 'tasks', 'settings',
     // Pricing for sales = Pricing Overview only.
-    // No Anvi Sourcing. No Kunal Pricing. No Price History.
+    // No Sourcing Outbox. No Pricing Worksheet. No Price History.
     'pricing-dashboard',
   ],
 

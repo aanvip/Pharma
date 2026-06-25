@@ -16,7 +16,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { canSeeInternalPricing, canSeeFinalQuote } from '../../utils/permissions';
 import { showToast } from '../ToastNotification';
 import { showConfirm } from '../ConfirmDialog';
-import { INDIA_RECIPIENTS } from '../../config/indiaPricingConfig';
+import { loadRouteRecipients } from '../../services/sourcingRecipients';
 
 interface InquiryItem {
   id: string;
@@ -1395,10 +1395,11 @@ export function InquiryTableExcel({ inquiries, onRefresh, canManage, onAddInquir
       }
     }
 
+    const recipients = await loadRouteRecipients('india');
     setSelectedInquiryForEmail(selected[0]);
     setSelectedInquiriesForEmail(expandedRows);
-    setIndiaDefaultTo(INDIA_RECIPIENTS.to.join(', '));
-    setIndiaDefaultCc(INDIA_RECIPIENTS.cc.join(', '));
+    setIndiaDefaultTo(recipients.to.join(', '));
+    setIndiaDefaultCc(recipients.cc.join(', '));
     setEmailMode('india');
     setEmailModalOpen(true);
   };
@@ -1800,7 +1801,7 @@ export function InquiryTableExcel({ inquiries, onRefresh, canManage, onAddInquir
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded-md hover:bg-orange-100 transition"
               >
                 <Calculator className="w-3.5 h-3.5" />
-                Mark for Kunal Review
+                Send to Pricing Queue
               </button>
               <button
                 onClick={handleSendQuote}

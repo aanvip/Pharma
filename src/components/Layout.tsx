@@ -144,8 +144,8 @@ export function Layout({ children }: LayoutProps) {
     { id: 'finance',             label: t('nav.finance'),              icon: DollarSign },
     { id: 'price-calculator',    label: 'Price Calculator',            icon: Calculator },
     { id: 'pricing-dashboard',   label: 'Pricing Overview',            icon: Tags },
-    { id: 'sourcing-outbox',     label: 'Anvi Sourcing',               icon: Tags },
-    { id: 'pricing-worksheet',   label: 'Kunal Pricing',               icon: Tags },
+    { id: 'sourcing-outbox',     label: 'Sourcing Outbox',             icon: Tags },
+    { id: 'pricing-worksheet',   label: 'Pricing Worksheet',           icon: Tags },
     { id: 'pricing-ledger',      label: 'Price History',               icon: Tags },
     // Hidden from daily users — routes stay live for admin/debug.
     // { id: 'price-requests', ... }, { id: 'pricing-desk', ... }, { id: 'pricing-parser-review', ... }

@@ -267,7 +267,7 @@ export function GmailVisibilityPanel() {
 
       <div className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 rounded px-2.5 py-1.5 flex items-start gap-2">
         <AlertCircle className="w-3 h-3 mt-0.5 text-gray-400" />
-        <span>India reply parser not connected yet. Source replies must be entered manually via Kunal Pricing for now. Once the parser is wired, parsed replies will show as "extraction attempts" in this panel.</span>
+        <span>India reply parser not connected yet. Source replies must be entered manually via Pricing Worksheet for now. Once the parser is wired, parsed replies will show as "extraction attempts" in this panel.</span>
       </div>
     </div>
   );

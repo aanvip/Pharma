@@ -180,10 +180,10 @@ export function PricingDashboard() {
           </button>
         </div>
 
-        {/* Anvi / sales-head section */}
+        {/* Sourcing / sales-head section */}
         {showAnvi && (
           <div className="mb-4">
-            <p className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-1.5">Sales / Anvi</p>
+            <p className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-1.5">Sourcing</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
               <Card icon={Mail} label="New (not sent)" value={crm.newNotSent}
                 color="bg-blue-100 text-blue-700"
