@@ -317,7 +317,7 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
     setAttachments([]);
 
     if (mode === 'india') {
-      const refs = allInquiries.map(i => i.aceerp_no).filter(Boolean).join(', ');
+      const refs = [...new Set(allInquiries.map(i => i.aceerp_no).filter(Boolean))].join(', ');
       setSubject(`India Pricing Request - ACE Ref ${refs}`);
     } else {
       setSubject(buildSubject(inquiry, mode, replyTo));

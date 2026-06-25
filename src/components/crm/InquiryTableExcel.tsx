@@ -2753,7 +2753,11 @@ export function InquiryTableExcel({ inquiries, onRefresh, canManage, onAddInquir
             onRefresh();
           }}
           inquiry={selectedInquiryForEmail}
-          inquiries={selectedInquiriesForEmail.length > 1 ? selectedInquiriesForEmail : undefined}
+          inquiries={
+            emailMode === 'india'
+              ? (selectedInquiriesForEmail.length > 0 ? selectedInquiriesForEmail : undefined)
+              : (selectedInquiriesForEmail.length > 1 ? selectedInquiriesForEmail : undefined)
+          }
           mode={emailMode}
           defaultTo={emailMode === 'india' ? indiaDefaultTo : undefined}
           defaultCc={emailMode === 'india' ? indiaDefaultCc : undefined}
