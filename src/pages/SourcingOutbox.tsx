@@ -28,6 +28,7 @@ import {
 } from '../services/sourcingRecipients';
 import { RecipientChips } from '../components/crm/RecipientChips';
 import { aiImproveEmail, extractProtectedTokens } from '../services/aiEmailAssistant';
+import { buildSourcingReminderHtml } from '../utils/sourcingEmailBuilder';
 import {
   findInquiryCandidates,
   parseSourceReplyEmail,
@@ -212,7 +213,11 @@ function lastContactAge(row: Inquiry): number {
 }
 
 function isCompleted(row: Inquiry): boolean {
-  return row.source_status === 'received'
+  // price_ready=true means Kunal has finished pricing regardless of source_status.
+  if (row.price_ready === true) return true;
+  // received but kunal still pending stays visible until priced.
+  const sourceDone = row.source_status === 'received' && row.kunal_price_status !== 'pending';
+  return sourceDone
     || row.source_status === 'unavailable'
     || row.quote_status === 'won'
     || row.quote_status === 'lost'
@@ -1002,8 +1007,16 @@ export function SourcingOutbox() {
   };
 
   const previewBodies = useMemo(() => ({
-    india: groups.india.length ? buildEmailBody(groups.india, 'india') : '',
-    china: groups.china.length ? buildEmailBody(groups.china, 'china') : '',
+    india: groups.india.length
+      ? (groups.india.every(r => r.source_status !== 'not_sent')
+          ? buildSourcingReminderHtml(groups.india)
+          : buildEmailBody(groups.india, 'india'))
+      : '',
+    china: groups.china.length
+      ? (groups.china.every(r => r.source_status !== 'not_sent')
+          ? buildSourcingReminderHtml(groups.china)
+          : buildEmailBody(groups.china, 'china'))
+      : '',
   }), [groups]);
 
   const sendGroup = async (route: 'india' | 'china') => {
@@ -1013,11 +1026,16 @@ export function SourcingOutbox() {
     if (!recips || recips.to.length === 0) {
       return { ok: false, error: `No recipient email set for ${route}. Edit recipients in the preview before sending.`, route };
     }
-    const contact = SOURCING_CONTACTS[route];
     const hasNew = rows.some(row => row.source_status === 'not_sent');
     const subject = hasNew
       ? `Sourcing Request - ${rows.length} item${rows.length !== 1 ? 's' : ''}`
-      : `Reminder - ${rows.length} pending item${rows.length !== 1 ? 's' : ''}`;
+      : 'Reminder – Pending Pricing Requests';
+
+    const bodyRaw = bodyOverride[route] != null
+      ? bodyOverride[route]
+      : hasNew
+        ? buildEmailBody(rows, route).replace(/\n/g, '<br/>')
+        : buildSourcingReminderHtml(rows);
 
     const result = await sendPricingWorkflowEmail({
       workflowType: hasNew ? 'sourcing_request' : 'sourcing_reminder',
@@ -1026,7 +1044,7 @@ export function SourcingOutbox() {
       cc: recips.cc,
       bcc: recips.bcc,
       subject,
-      body: (bodyOverride[route] ?? buildEmailBody(rows, route)).replace(/\n/g, '<br/>'),
+      body: bodyRaw,
       isHtml: true,
       senderName: profile?.full_name || '',
       recordThread: false,
@@ -1093,7 +1111,7 @@ export function SourcingOutbox() {
     const hasNew = rows.some(row => row.source_status === 'not_sent');
     const subject = hasNew
       ? `Sourcing Request - ${rows.length} item${rows.length !== 1 ? 's' : ''}`
-      : `Reminder - ${rows.length} pending item${rows.length !== 1 ? 's' : ''}`;
+      : 'Reminder – Pending Pricing Requests';
     const protectedTokens = extractProtectedTokens(currentBody);
 
     setAiBusy(route);
