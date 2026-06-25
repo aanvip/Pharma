@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Send, Paperclip, X, ChevronDown, Loader, Minimize2, Maximize2, AlertCircle, FileText, Check, Info } from 'lucide-react';
+import { Send, Paperclip, X, ChevronDown, Loader, Minimize2, Maximize2, AlertCircle, FileText, Check } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import DOMPurify from 'dompurify';
@@ -8,7 +8,6 @@ import { openGmailReconnectPopup } from './gmailReconnect';
 import { applyEmailTemplateVariables, getDisplayContactName, getSalutation } from '../../utils/crmEmailPersonalization';
 import { buildNormalizedBaseKey, buildUniqueDocumentNames } from '../../utils/documentNaming';
 import { escapeHtml, buildCompanySignature } from '../../utils/emailFormatting';
-import { formatDateTime } from '../../utils/dateFormat';
 
 interface Inquiry {
   id: string;
@@ -30,10 +29,6 @@ interface Inquiry {
   remarks?: string | null;
   aceerp_no?: string | null;
   delivery_date?: string | null;
-  source_status?: string | null;
-  last_sourcing_sent_at?: string | null;
-  last_reminder_sent_at?: string | null;
-  reminder_count?: number | null;
 }
 
 interface EmailTemplate {
@@ -302,7 +297,6 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
   const [fullscreen, setFullscreen] = useState(false);
   const [currentUserName, setCurrentUserName] = useState('');
   const [gmailConnected, setGmailConnected] = useState<boolean | null>(null);
-  const [lastSentBy, setLastSentBy] = useState<string | null>(null);
 
   // CRM docs panel
   const [crmDocs, setCrmDocs] = useState<CrmDoc[]>([]);
@@ -341,23 +335,6 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
     };
 
     initialiseComposer();
-
-    // Fetch who last sent to India for the info panel
-    setLastSentBy(null);
-    if (mode === 'india') {
-      const alreadySent = allInquiries.some(i => i.source_status && i.source_status !== 'not_sent');
-      if (alreadySent) {
-        const ids = allInquiries.map(i => i.id);
-        supabase.from('crm_inquiry_timeline')
-          .select('actor_name')
-          .in('inquiry_id', ids)
-          .in('event_type', ['sent_to_india', 'sourcing_request_sent'])
-          .order('event_timestamp', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-          .then(({ data }) => setLastSentBy(data?.actor_name ?? null));
-      }
-    }
   }, [isOpen, inquiry.id, mode]);
 
   useEffect(() => {
@@ -833,8 +810,6 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
           updateData.sent_to_india = true;
           updateData.sent_to_india_at = quoteSentAt;
           updateData.sent_to_india_by = user.id;
-          updateData.source_status = 'sent';
-          updateData.last_sourcing_sent_at = quoteSentAt;
         }
         if (shouldMarkCoaSent) {
           updateData.coa_sent = true;
@@ -941,31 +916,6 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
                 Gmail not connected — go to Settings &gt; Gmail Settings to connect before sending.
               </div>
             )}
-
-            {/* Already-sent info panel — india mode only */}
-            {mode === 'india' && allInquiries.some(i => i.source_status && i.source_status !== 'not_sent') && (() => {
-              const sent = allInquiries.find(i => i.source_status && i.source_status !== 'not_sent')!;
-              return (
-                <div className="mx-3 mt-2.5 mb-1 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                  <div className="flex items-start gap-2 mb-2">
-                    <Info className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" />
-                    <p className="text-xs text-amber-800 leading-snug">
-                      Already sent to India. For follow-up reminders, use <strong>Sourcing Outbox</strong>. Sending here will create a new sourcing request email.
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs pl-5">
-                    <span className="text-amber-500 whitespace-nowrap">Last sent</span>
-                    <span className="text-amber-800">{sent.last_sourcing_sent_at ? formatDateTime(sent.last_sourcing_sent_at) : '—'}</span>
-                    {lastSentBy && (<><span className="text-amber-500">Sent by</span><span className="text-amber-800">{lastSentBy}</span></>)}
-                    <span className="text-amber-500 whitespace-nowrap">Reminders sent</span>
-                    <span className="text-amber-800">{sent.reminder_count ?? 0}</span>
-                    {sent.last_reminder_sent_at && (
-                      <><span className="text-amber-500 whitespace-nowrap">Last reminder</span><span className="text-amber-800">{formatDateTime(sent.last_reminder_sent_at)}</span></>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
 
             {/* Multi-product indicator */}
             {isMulti && (
