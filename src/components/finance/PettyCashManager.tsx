@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Wallet, ArrowDownCircle, ArrowUpCircle, RefreshCw, Upload, X, FileText, Image, Eye, CreditCard as Edit2, Trash2, ExternalLink, Download, Clipboard, DollarSign, Package, Truck, Building2, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Plus, Wallet, ArrowDownCircle, ArrowUpCircle, RefreshCw, Upload, X, FileText, Image, Eye, CreditCard as Edit2, Trash2, ExternalLink, Download, Clipboard, DollarSign, Package, Truck, Building2, CheckCircle, XCircle, Clock, Lock, RotateCcw } from 'lucide-react';
 import { Modal } from '../Modal';
 import { useFinance } from '../../contexts/FinanceContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -309,6 +309,10 @@ export function PettyCashManager({ canManage, onNavigateToFundTransfer, initialV
   const [pcRejectionModalOpen, setPcRejectionModalOpen] = useState(false);
   const [pcRejectionTarget, setPcRejectionTarget] = useState<string | null>(null);
   const [pcRejectionReason, setPcRejectionReason] = useState('');
+  const [cancelPostingModalOpen, setCancelPostingModalOpen] = useState(false);
+  const [cancelPostingTarget, setCancelPostingTarget] = useState<PettyCashTransaction | null>(null);
+  const [cancelPostingReason, setCancelPostingReason] = useState('');
+  const [cancelPostingLoading, setCancelPostingLoading] = useState(false);
   const [transactions, setTransactions] = useState<PettyCashTransaction[]>([]);
   const [containers, setContainers] = useState<ImportContainer[]>([]);
   const [challans, setChallans] = useState<DeliveryChallan[]>([]);
@@ -591,6 +595,10 @@ export function PettyCashManager({ canManage, onNavigateToFundTransfer, initialV
   };
 
   const openEditModal = (transaction: PettyCashTransaction) => {
+    if (transaction.approval_status === 'approved') {
+      showToast({ type: 'error', title: 'Posted', message: 'This transaction is posted. Cancel Posting first to make changes.' });
+      return;
+    }
     setEditingTransaction(transaction);
     setFormData({
       transaction_type: transaction.transaction_type,
@@ -856,6 +864,40 @@ export function PettyCashManager({ canManage, onNavigateToFundTransfer, initialV
     } finally {
       setApprovalLoading(null);
     }
+  };
+
+  const handleCancelPostingConfirm = async () => {
+    if (!cancelPostingTarget || !cancelPostingReason.trim()) return;
+    setCancelPostingLoading(true);
+    try {
+      const { error } = await supabase.rpc('cancel_petty_cash_posting', {
+        p_pct_id: cancelPostingTarget.id,
+        p_cancelled_by: profile?.id,
+        p_reason: cancelPostingReason,
+      });
+      if (error) throw error;
+      showToast({ type: 'success', title: 'Posting Cancelled', message: `${cancelPostingTarget.transaction_number} is now in draft. Edit and re-approve to repost.` });
+      setCancelPostingModalOpen(false);
+      setCancelPostingTarget(null);
+      setCancelPostingReason('');
+      setViewModalOpen(false);
+      loadData();
+    } catch (err: any) {
+      const msg: string = err.message || '';
+      if (msg.includes('closed')) {
+        showToast({ type: 'error', title: 'Period Closed', message: msg });
+      } else {
+        showToast({ type: 'error', title: 'Error', message: msg });
+      }
+    } finally {
+      setCancelPostingLoading(false);
+    }
+  };
+
+  const openCancelPostingModal = (tx: PettyCashTransaction) => {
+    setCancelPostingTarget(tx);
+    setCancelPostingReason('');
+    setCancelPostingModalOpen(true);
   };
 
   const exportToCSV = () => {
@@ -1239,7 +1281,16 @@ export function PettyCashManager({ canManage, onNavigateToFundTransfer, initialV
                             </button>
                           </>
                         )}
-                        {canManage && (
+                        {isAdmin && tx.approval_status === 'approved' && (
+                          <button
+                            onClick={() => openCancelPostingModal(tx)}
+                            className="text-orange-600 hover:text-orange-900"
+                            title="Cancel Posting"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </button>
+                        )}
+                        {canManage && tx.approval_status !== 'approved' && (
                           <>
                             <button
                               onClick={() => openEditModal(tx)}
@@ -1685,7 +1736,7 @@ export function PettyCashManager({ canManage, onNavigateToFundTransfer, initialV
                 <p className="text-xs text-gray-500 mb-1">Approval Status</p>
                 {viewingTransaction.approval_status === 'approved' ? (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 rounded-full">
-                    <CheckCircle className="w-3 h-3" />Approved
+                    <CheckCircle className="w-3 h-3" />Posted
                   </span>
                 ) : viewingTransaction.approval_status === 'rejected' ? (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 rounded-full" title={viewingTransaction.rejection_reason || ''}>
@@ -1693,35 +1744,52 @@ export function PettyCashManager({ canManage, onNavigateToFundTransfer, initialV
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-full">
-                    <Clock className="w-3 h-3" />Pending
+                    <Clock className="w-3 h-3" />Draft
                   </span>
+                )}
+                {viewingTransaction.approval_status === 'approved' && (
+                  <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                    <Lock className="w-3 h-3" />Journal entry posted — fields are locked
+                  </p>
                 )}
                 {viewingTransaction.rejection_reason && (
                   <p className="mt-1 text-xs text-red-700">{viewingTransaction.rejection_reason}</p>
                 )}
               </div>
-              {isAdmin && viewingTransaction.approval_status === 'pending_approval' && (
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                {isAdmin && viewingTransaction.approval_status === 'pending_approval' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleApprovePettyCash(viewingTransaction.id)}
+                      disabled={approvalLoading === viewingTransaction.id}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-50"
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPcRejectionTarget(viewingTransaction.id); setPcRejectionModalOpen(true); }}
+                      disabled={approvalLoading === viewingTransaction.id}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      Reject
+                    </button>
+                  </>
+                )}
+                {isAdmin && viewingTransaction.approval_status === 'approved' && (
                   <button
                     type="button"
-                    onClick={() => handleApprovePettyCash(viewingTransaction.id)}
-                    disabled={approvalLoading === viewingTransaction.id}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-50"
+                    onClick={() => openCancelPostingModal(viewingTransaction)}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded hover:bg-orange-100"
                   >
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    Approve
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Cancel Posting
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => { setPcRejectionTarget(viewingTransaction.id); setPcRejectionModalOpen(true); }}
-                    disabled={approvalLoading === viewingTransaction.id}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50"
-                  >
-                    <XCircle className="w-3.5 h-3.5" />
-                    Reject
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Description */}
@@ -1867,6 +1935,49 @@ export function PettyCashManager({ canManage, onNavigateToFundTransfer, initialV
           </div>
         </div>
       </div>
+
+      {/* Cancel Posting modal */}
+      {cancelPostingModalOpen && cancelPostingTarget && (
+        <Modal
+          isOpen={cancelPostingModalOpen}
+          onClose={() => { setCancelPostingModalOpen(false); setCancelPostingTarget(null); setCancelPostingReason(''); }}
+          title="Cancel Posting"
+        >
+          <div className="space-y-4">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-800">
+              <p className="font-semibold mb-1">{cancelPostingTarget.transaction_number}</p>
+              <p>This will delete the posted journal entry and return the transaction to Draft. You can then edit and re-approve to repost.</p>
+              <p className="mt-1 text-xs">This action cannot be done if the accounting period is closed.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reason for cancelling posting <span className="text-red-500">*</span></label>
+              <textarea
+                value={cancelPostingReason}
+                onChange={e => setCancelPostingReason(e.target.value)}
+                rows={3}
+                placeholder="Reason (e.g. wrong amount entered, incorrect category)..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setCancelPostingModalOpen(false); setCancelPostingTarget(null); setCancelPostingReason(''); }}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleCancelPostingConfirm}
+                disabled={!cancelPostingReason.trim() || cancelPostingLoading}
+                className="px-4 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                {cancelPostingLoading ? 'Cancelling...' : 'Cancel Posting'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Petty cash rejection modal */}
       {pcRejectionModalOpen && (
