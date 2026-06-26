@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, DollarSign, Package, Truck, Building2, CreditCard as Edit, Trash2, FileText, Upload, X, ExternalLink, Download, Eye, CheckCircle, XCircle, Clock, Clipboard } from 'lucide-react';
+import { Plus, DollarSign, Package, Truck, Building2, CreditCard as Edit, Trash2, FileText, Upload, X, ExternalLink, Download, Eye, CheckCircle, XCircle, Clock, Clipboard, Lock, RotateCcw } from 'lucide-react';
 import { Modal } from '../Modal';
 import { useFinance } from '../../contexts/FinanceContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -313,6 +313,10 @@ export function ExpenseManager({ canManage, initialViewExpenseId, onInitialViewH
   const [rejectionTarget, setRejectionTarget] = useState<{ id: string; type: 'expense' } | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
+  const [cancelPostingModalOpen, setCancelPostingModalOpen] = useState(false);
+  const [cancelPostingTarget, setCancelPostingTarget] = useState<FinanceExpense | null>(null);
+  const [cancelPostingReason, setCancelPostingReason] = useState('');
+  const [cancelPostingLoading, setCancelPostingLoading] = useState(false);
   const [expenses, setExpenses] = useState<FinanceExpense[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [containers, setContainers] = useState<ImportContainer[]>([]);
@@ -1000,6 +1004,10 @@ export function ExpenseManager({ canManage, initialViewExpenseId, onInitialViewH
   };
 
   const handleEdit = async (expense: FinanceExpense) => {
+    if (expense.approval_status === 'approved') {
+      alert('This expense is posted. Cancel Posting first to make changes.');
+      return;
+    }
     setEditingExpense(expense);
 
     // Check if expense is reconciled to a bank statement
@@ -1096,6 +1104,28 @@ export function ExpenseManager({ canManage, initialViewExpenseId, onInitialViewH
       alert('Failed to reject: ' + err.message);
     } finally {
       setApprovalLoading(null);
+    }
+  };
+
+  const handleCancelPostingConfirm = async () => {
+    if (!cancelPostingTarget || !cancelPostingReason.trim()) return;
+    setCancelPostingLoading(true);
+    try {
+      const { error } = await supabase.rpc('cancel_expense_posting', {
+        p_exp_id:       cancelPostingTarget.id,
+        p_cancelled_by: profile?.id,
+        p_reason:       cancelPostingReason,
+      });
+      if (error) throw error;
+      setCancelPostingModalOpen(false);
+      setCancelPostingTarget(null);
+      setCancelPostingReason('');
+      loadExpenses();
+    } catch (err: any) {
+      const msg: string = err.message || '';
+      alert(msg.includes('closed') ? `Period closed: ${msg}` : `Error: ${msg}`);
+    } finally {
+      setCancelPostingLoading(false);
     }
   };
 
@@ -1714,20 +1744,33 @@ export function ExpenseManager({ canManage, initialViewExpenseId, onInitialViewH
                               </button>
                             </>
                           )}
-                          <button
-                            onClick={() => handleEdit(expense)}
-                            className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
-                            title="Edit"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(expense.id)}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {isAdmin && expense.approval_status === 'approved' && (
+                            <button
+                              onClick={() => { setCancelPostingTarget(expense); setCancelPostingReason(''); setCancelPostingModalOpen(true); }}
+                              className="p-1 text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                              title="Cancel Posting"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {expense.approval_status !== 'approved' && (
+                            <>
+                              <button
+                                onClick={() => handleEdit(expense)}
+                                className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                                title="Edit"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(expense.id)}
+                                className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     )}
@@ -2597,6 +2640,40 @@ export function ExpenseManager({ canManage, initialViewExpenseId, onInitialViewH
                 className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Cancel Posting modal */}
+      {cancelPostingModalOpen && cancelPostingTarget && (
+        <Modal isOpen={cancelPostingModalOpen} onClose={() => { setCancelPostingModalOpen(false); setCancelPostingTarget(null); setCancelPostingReason(''); }} title="Cancel Expense Posting" maxWidth="max-w-md">
+          <div className="space-y-4">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-800">
+              <p className="font-semibold mb-1">{cancelPostingTarget.expense_category} — Rp {Number(cancelPostingTarget.amount).toLocaleString('id-ID')}</p>
+              <p>This will delete the posted journal entry and return the expense to Draft. Edit and re-approve to repost.</p>
+              <p className="mt-1 text-xs flex items-center gap-1"><Lock className="w-3 h-3" /> Not allowed if the accounting period is closed.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reason <span className="text-red-500">*</span></label>
+              <textarea
+                value={cancelPostingReason}
+                onChange={e => setCancelPostingReason(e.target.value)}
+                rows={3}
+                placeholder="Reason for cancelling posting..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => { setCancelPostingModalOpen(false); setCancelPostingTarget(null); setCancelPostingReason(''); }} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Back</button>
+              <button
+                onClick={handleCancelPostingConfirm}
+                disabled={!cancelPostingReason.trim() || cancelPostingLoading}
+                className="px-4 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                {cancelPostingLoading ? 'Cancelling...' : 'Cancel Posting'}
               </button>
             </div>
           </div>

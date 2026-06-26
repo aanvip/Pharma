@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Eye, Search, ArrowDownCircle, Check, CreditCard as Edit2, Trash2, X, Printer } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { Plus, Eye, Search, ArrowDownCircle, Check, CreditCard as Edit2, Trash2, X, Printer, Lock, RotateCcw, CheckCircle } from 'lucide-react';
 import { Modal } from '../Modal';
 import { SearchableSelect } from '../SearchableSelect';
 import jsPDF from 'jspdf';
@@ -54,10 +55,12 @@ interface ReceiptVoucher {
   reference_number: string | null;
   amount: number;
   description: string | null;
+  is_posted: boolean;
+  journal_entry_id: string | null;
   created_at: string;
   customers?: { company_name: string };
   bank_accounts?: { account_name: string; bank_name: string; alias?: string };
-  allocated_to?: string; // Display text like "SAPJ-008 (Invoice)" or "SO-2025-0004 (Advance)"
+  allocated_to?: string;
 }
 
 interface ReceiptVoucherManagerProps {
@@ -68,7 +71,13 @@ const allocationKey = (allocation: { targetId: string; targetType: 'invoice' | '
   `${allocation.targetType}:${allocation.targetId}`;
 
 export function ReceiptVoucherManager({ canManage }: ReceiptVoucherManagerProps) {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
   const printRef = useRef<HTMLDivElement>(null);
+  const [cancelPostingTarget, setCancelPostingTarget] = useState<ReceiptVoucher | null>(null);
+  const [cancelPostingReason, setCancelPostingReason] = useState('');
+  const [cancelPostingLoading, setCancelPostingLoading] = useState(false);
+  const [postingLoading, setPostingLoading] = useState<string | null>(null);
   const [vouchers, setVouchers] = useState<ReceiptVoucher[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -129,7 +138,7 @@ export function ReceiptVoucherManager({ canManage }: ReceiptVoucherManagerProps)
     try {
       const { data, error } = await supabase
         .from('receipt_vouchers')
-        .select('*, customers(company_name), bank_accounts(account_name, bank_name, alias)')
+        .select('*, customers(company_name), bank_accounts(account_name, bank_name, alias), is_posted, journal_entry_id')
         .order('voucher_date', { ascending: false });
 
       if (error) throw error;
@@ -354,6 +363,10 @@ export function ReceiptVoucherManager({ canManage }: ReceiptVoucherManagerProps)
       let voucher;
 
       if (editMode && selectedVoucher) {
+        if (selectedVoucher.is_posted) {
+          showToast({ type: 'error', title: 'Posted', message: 'Cannot edit a posted receipt voucher. Cancel posting first.' });
+          return;
+        }
         // UPDATE existing voucher
         const { data: updatedVoucher, error } = await supabase
           .from('receipt_vouchers')
@@ -497,6 +510,55 @@ export function ReceiptVoucherManager({ canManage }: ReceiptVoucherManagerProps)
     setSelectedVoucher(null);
   };
 
+  const handlePostVoucher = async (v: ReceiptVoucher) => {
+    if (!profile?.id) return;
+    setPostingLoading(v.id);
+    try {
+      const { error } = await supabase.rpc('post_receipt_voucher', {
+        p_rv_id: v.id,
+        p_posted_by: profile.id,
+      });
+      if (error) throw error;
+      loadVouchers();
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to post: ' + (err instanceof Error ? err.message : String(err)) });
+    } finally {
+      setPostingLoading(null);
+    }
+  };
+
+  const openCancelPostingModal = (v: ReceiptVoucher) => {
+    setCancelPostingTarget(v);
+    setCancelPostingReason('');
+  };
+
+  const handleCancelPostingConfirm = async () => {
+    if (!cancelPostingTarget || !profile?.id) return;
+    setCancelPostingLoading(true);
+    try {
+      const { error } = await supabase.rpc('cancel_receipt_voucher_posting', {
+        p_rv_id: cancelPostingTarget.id,
+        p_cancelled_by: profile.id,
+        p_reason: cancelPostingReason || null,
+      });
+      if (error) {
+        if (error.message?.includes('period') && error.message?.includes('closed')) {
+          showToast({ type: 'error', title: 'Period Closed', message: 'Cannot cancel posting: the accounting period for this voucher is closed.' });
+        } else {
+          throw error;
+        }
+        return;
+      }
+      setCancelPostingTarget(null);
+      setCancelPostingReason('');
+      loadVouchers();
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to cancel posting: ' + (err instanceof Error ? err.message : String(err)) });
+    } finally {
+      setCancelPostingLoading(false);
+    }
+  };
+
   const handleView = async (voucher: ReceiptVoucher) => {
     setSelectedVoucher(voucher);
 
@@ -515,6 +577,10 @@ export function ReceiptVoucherManager({ canManage }: ReceiptVoucherManagerProps)
   };
 
   const handleEdit = async (voucher: ReceiptVoucher) => {
+    if (voucher.is_posted) {
+      showToast({ type: 'error', title: 'Posted', message: 'This receipt voucher has been posted to the GL. Cancel posting first to edit it.' });
+      return;
+    }
     setSelectedVoucher(voucher);
     setEditMode(true);
 
@@ -551,6 +617,10 @@ export function ReceiptVoucherManager({ canManage }: ReceiptVoucherManagerProps)
   };
 
   const handleDelete = async (voucher: ReceiptVoucher) => {
+    if (voucher.is_posted) {
+      showToast({ type: 'error', title: 'Posted', message: 'This receipt voucher has been posted to the GL. Cancel posting first to delete it.' });
+      return;
+    }
     if (!await showConfirm({ title: 'Confirm', message: `Delete receipt voucher ${voucher.voucher_number}? This will remove all allocations and cannot be undone.`, variant: 'danger', confirmLabel: 'Delete' })) {
       return;
     }
@@ -560,21 +630,6 @@ export function ReceiptVoucherManager({ canManage }: ReceiptVoucherManagerProps)
         .from('voucher_allocations')
         .delete()
         .eq('receipt_voucher_id', voucher.id);
-
-      if (voucher.journal_entry_id) {
-        await supabase
-          .from('bank_statement_lines')
-          .update({
-            matched_entry_id: null,
-            reconciliation_status: 'unmatched',
-            matched_at: null,
-            matched_by: null,
-          })
-          .eq('matched_entry_id', voucher.journal_entry_id);
-
-        await supabase.from('journal_entry_lines').delete().eq('journal_entry_id', voucher.journal_entry_id);
-        await supabase.from('journal_entries').delete().eq('id', voucher.journal_entry_id);
-      }
 
       const { data: linkedBankLines } = await supabase
         .from('bank_statement_lines')
@@ -675,31 +730,53 @@ export function ReceiptVoucherManager({ canManage }: ReceiptVoucherManagerProps)
                   Rp {voucher.amount.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center justify-center gap-2">
+                  <div className="flex items-center justify-center gap-1">
                     <button
                       onClick={() => handleView(voucher)}
-                      className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                      className="p-1.5 text-gray-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
                       title="View Details"
                     >
-                      <Eye className="w-4 h-4" />
+                      <Eye className="w-3.5 h-3.5" />
                     </button>
-                    {canManage && (
+                    {canManage && !voucher.is_posted && (
                       <>
                         <button
+                          onClick={() => handlePostVoucher(voucher)}
+                          disabled={postingLoading === voucher.id}
+                          className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
+                          title="Post to GL"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                        </button>
+                        <button
                           onClick={() => handleEdit(voucher)}
-                          className="p-1 text-amber-600 hover:bg-amber-50 rounded"
+                          className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
                           title="Edit"
                         >
-                          <Edit2 className="w-4 h-4" />
+                          <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDelete(voucher)}
-                          className="p-1 text-red-600 hover:bg-red-50 rounded"
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                           title="Delete"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </>
+                    )}
+                    {voucher.is_posted && (
+                      <span className="flex items-center gap-1 px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-medium">
+                        <Lock className="w-3 h-3" /> Posted
+                      </span>
+                    )}
+                    {voucher.is_posted && isAdmin && (
+                      <button
+                        onClick={() => openCancelPostingModal(voucher)}
+                        className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                        title="Cancel Posting"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
                     )}
                   </div>
                 </td>
@@ -1031,24 +1108,90 @@ export function ReceiptVoucherManager({ canManage }: ReceiptVoucherManagerProps)
               )}
             </div>
 
-            <div className="flex justify-between pt-4">
-              <button
-                onClick={handlePrint}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-              >
-                <Printer className="w-4 h-4" />
-                Print PDF
-              </button>
-              <button
-                onClick={() => { setViewModalOpen(false); setSelectedVoucher(null); setVoucherAllocations([]); }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-              >
-                Close
-              </button>
+            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+              <div className="flex items-center gap-2">
+                {selectedVoucher.is_posted ? (
+                  <span className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
+                    <Lock className="w-3 h-3" /> Posted
+                  </span>
+                ) : (
+                  <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-medium">Draft</span>
+                )}
+                {selectedVoucher.is_posted && isAdmin && (
+                  <button
+                    onClick={() => { setViewModalOpen(false); openCancelPostingModal(selectedVoucher); }}
+                    className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium border border-amber-300 text-amber-700 rounded hover:bg-amber-50"
+                  >
+                    <RotateCcw className="w-3 h-3" /> Cancel Posting
+                  </button>
+                )}
+                {!selectedVoucher.is_posted && canManage && (
+                  <button
+                    onClick={() => { setViewModalOpen(false); handlePostVoucher(selectedVoucher); }}
+                    className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium border border-green-300 text-green-700 rounded hover:bg-green-50"
+                  >
+                    <CheckCircle className="w-3 h-3" /> Post to GL
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handlePrint}
+                  className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1.5"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Print PDF
+                </button>
+                <button
+                  onClick={() => { setViewModalOpen(false); setSelectedVoucher(null); setVoucherAllocations([]); }}
+                  className="px-3 py-1.5 text-xs bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}
       </Modal>
+
+      {cancelPostingTarget && (
+        <Modal
+          isOpen={!!cancelPostingTarget}
+          onClose={() => { setCancelPostingTarget(null); setCancelPostingReason(''); }}
+          title={`Cancel GL Posting — ${cancelPostingTarget.voucher_number}`}
+        >
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              This will delete the journal entry for this receipt voucher and reset it to Draft. The voucher will need to be re-posted after any edits.
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Reason (optional)</label>
+              <textarea
+                value={cancelPostingReason}
+                onChange={(e) => setCancelPostingReason(e.target.value)}
+                rows={3}
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg"
+                placeholder="Reason for cancelling the GL posting..."
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setCancelPostingTarget(null); setCancelPostingReason(''); }}
+                className="px-3 py-1.5 text-sm text-gray-600 border rounded-lg hover:bg-gray-50"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleCancelPostingConfirm}
+                disabled={cancelPostingLoading}
+                className="px-4 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50"
+              >
+                {cancelPostingLoading ? 'Cancelling...' : 'Cancel Posting'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Hidden Print Format */}
       {selectedVoucher && (
