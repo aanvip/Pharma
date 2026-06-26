@@ -29,6 +29,10 @@ interface Inquiry {
   remarks?: string | null;
   aceerp_no?: string | null;
   delivery_date?: string | null;
+  coa_required?: boolean | null;
+  sample_required?: boolean | null;
+  agency_letter_required?: boolean | null;
+  others_required?: boolean | null;
 }
 
 interface EmailTemplate {
@@ -229,9 +233,10 @@ function buildPriceTable(items: Inquiry[]): string {
   </table>`;
 }
 
-function buildIndiaTable(items: Inquiry[], docs: CrmDoc[]): string {
+function buildIndiaTable(items: Inquiry[]): string {
   const headerStyle = 'padding:10px 12px;border:1px solid #b7c9df;background:#073763;color:#ffffff;text-align:left;font-weight:700;font-size:13px;';
   const cellBase = 'padding:9px 12px;border:1px solid #d1d5db;color:#1f2937;font-size:13px;vertical-align:top;';
+  const priceCell = 'padding:9px 12px;border:1px solid #d1d5db;color:#1f2937;font-size:13px;vertical-align:top;background:#fafff5;min-width:80px;';
 
   const rows = items.map((inq, index) => {
     const background = index % 2 === 0 ? '#ffffff' : '#f8fafc';
@@ -244,9 +249,12 @@ function buildIndiaTable(items: Inquiry[], docs: CrmDoc[]): string {
     const deliveryDate = inq.delivery_date
       ? new Date(inq.delivery_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
       : '-';
-    const inquiryDocs = docs.filter(d => d.inquiry_id === inq.id);
-    const docTypes = Array.from(new Set(inquiryDocs.map(d => d.document_type))).filter(Boolean);
-    const docsAvail = docTypes.length > 0 ? docTypes.join(', ') : 'None';
+    const docLabels: string[] = [];
+    if (inq.coa_required) docLabels.push('COA');
+    if (inq.sample_required) docLabels.push('Sample');
+    if (inq.agency_letter_required) docLabels.push('Agency Letter');
+    if (inq.others_required) docLabels.push('Others');
+    const docsRequired = docLabels.length > 0 ? docLabels.join(', ') : '-';
     const remarks = inq.remarks?.trim() || '-';
 
     return `<tr style="background:${background};">
@@ -257,12 +265,13 @@ function buildIndiaTable(items: Inquiry[], docs: CrmDoc[]): string {
       <td style="${cellBase}">${escapeHtml(make)}</td>
       <td style="${cellBase}white-space:nowrap;">${escapeHtml(qty)}</td>
       <td style="${cellBase}white-space:nowrap;">${escapeHtml(deliveryDate)}</td>
-      <td style="${cellBase}">${escapeHtml(docsAvail)}</td>
+      <td style="${cellBase}">${escapeHtml(docsRequired)}</td>
+      <td style="${priceCell}">&nbsp;</td>
       <td style="${cellBase}">${escapeHtml(remarks)}</td>
     </tr>`;
   }).join('');
 
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;width:100%;max-width:900px;font-family:Arial,Helvetica,sans-serif;font-size:13px;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;width:100%;max-width:1000px;font-family:Arial,Helvetica,sans-serif;font-size:13px;mso-table-lspace:0pt;mso-table-rspace:0pt;">
     <thead><tr>
       <th style="${headerStyle}">ACE ERP Ref</th>
       <th style="${headerStyle}">Customer Name</th>
@@ -271,7 +280,8 @@ function buildIndiaTable(items: Inquiry[], docs: CrmDoc[]): string {
       <th style="${headerStyle}">Make</th>
       <th style="${headerStyle}">Quantity</th>
       <th style="${headerStyle}">Required Delivery Date</th>
-      <th style="${headerStyle}">Documents Available</th>
+      <th style="${headerStyle}">Documents Required</th>
+      <th style="${headerStyle}">Price</th>
       <th style="${headerStyle}">Remarks</th>
     </tr></thead>
     <tbody>${rows}</tbody>
@@ -318,7 +328,7 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
 
     if (mode === 'india') {
       const refs = [...new Set(allInquiries.map(i => i.aceerp_no).filter(Boolean))].join(', ');
-      setSubject(`India Pricing Request - ACE Ref ${refs}`);
+      setSubject(`Pricing Request - ACE Ref ${refs}`);
     } else {
       setSubject(buildSubject(inquiry, mode, replyTo));
     }
@@ -402,20 +412,20 @@ export function GmailLikeComposer({ isOpen, onClose, inquiry, inquiries, mode = 
     const signature = buildCompanySignature(userName);
 
     if (emailMode === 'india') {
-      let html = `<p>Dear India Team,</p>`;
-      html += `<p>Please find below the pricing request details received from our customer. Kindly review and revert at the earliest.</p>`;
-      html += buildIndiaTable(allInquiries, docs);
-      html += buildSupportingDocsHtml(docs);
-      html += `<p><strong>Kindly provide:</strong></p>`;
-      html += `<ul style="margin:4px 0 14px 0;padding-left:20px;line-height:1.8;">`;
-      html += `<li>Unit Price</li>`;
-      html += `<li>MOQ</li>`;
-      html += `<li>Lead Time</li>`;
-      html += `<li>Availability</li>`;
-      html += `<li>Validity</li>`;
-      html += `<li>Additional Remarks</li>`;
-      html += `</ul>`;
-      html += signature;
+      let html = `<p>Dear Team,</p>`;
+      html += `<p>Please provide your best quotation for the following requirement.</p>`;
+      html += buildIndiaTable(allInquiries);
+      html += `<div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;line-height:1.45;font-size:14px;margin-top:18px;">`;
+      html += `<p style="margin:0 0 6px 0;">Thank you.</p>`;
+      html += `<p style="margin:0 0 6px 0;">Best Regards,</p>`;
+      html += `<p style="margin:0 0 6px 0;">Kunal Lunkad</p>`;
+      html += `<p style="margin:0 0 4px 0;color:#073763;font-size:20px;font-weight:700;">PT Shubham Anzen Pharma Jaya</p>`;
+      html += `<p style="margin:0;">Ruko Sunter Terrace Blok C No.12, Jalan Danau Sunter Utara Kav. No.60</p>`;
+      html += `<p style="margin:0 0 6px 0;">Sunter Agung, Tanjung Priok, Jakarta Utara 14350, Indonesia</p>`;
+      html += `<p style="margin:0 0 2px 0;"><span style="color:#0b66c3;">📧</span> <a href="mailto:sales@sapharmajaya.co.id" style="color:#0b66c3;text-decoration:underline;">sales@sapharmajaya.co.id</a><span style="display:inline-block;width:18px;">&nbsp;</span><span style="color:#0b66c3;">🌐</span> <a href="http://www.sapharmajaya.co.id" style="color:#0b66c3;text-decoration:underline;">www.sapharmajaya.co.id</a></p>`;
+      html += `<p style="margin:0 0 18px 0;color:#274e13;">📱 WhatsApp: +62 85 888 600 999</p>`;
+      html += `<p style="margin:0;color:#073763;font-weight:700;font-style:italic;">APIs | Excipients | Formulations | Nutraceuticals | Herbal Extracts | Pharma Packaging Solutions | Technology Transfers</p>`;
+      html += `</div>`;
       logEmailHtmlEvidence('Generated India email HTML', html, { mode: emailMode, inquiryIds: allInquiries.map(i => i.id) });
       setBody(html);
       return;
