@@ -48,6 +48,7 @@ interface BankAccount {
   account_name: string;
   bank_name: string;
   alias: string | null;
+  currency: string;
 }
 
 interface PayablesManagerProps {
@@ -141,7 +142,7 @@ export function PayablesManager({ canManage }: PayablesManagerProps) {
     try {
       const { data, error } = await supabase
         .from('bank_accounts')
-        .select('id, account_name, bank_name, alias')
+        .select('id, account_name, bank_name, alias, currency')
         .eq('is_active', true)
         .order('account_name');
 
@@ -924,7 +925,7 @@ export function PayablesManager({ canManage }: PayablesManagerProps) {
                 <option value="">Select bank account</option>
                 {bankAccounts.map((account) => (
                   <option key={account.id} value={account.id}>
-                    {account.alias || `${account.account_name} - ${account.bank_name}`}
+                    {account.alias || `${account.account_name} - ${account.bank_name}`} ({account.currency || 'IDR'})
                   </option>
                 ))}
               </select>

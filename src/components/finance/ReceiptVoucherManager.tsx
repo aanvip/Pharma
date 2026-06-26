@@ -19,6 +19,7 @@ interface BankAccount {
   bank_name: string;
   account_number: string;
   alias?: string;
+  currency: string;
 }
 
 interface SalesInvoice {
@@ -184,7 +185,7 @@ export function ReceiptVoucherManager({ canManage }: ReceiptVoucherManagerProps)
   };
 
   const loadBankAccounts = async () => {
-    const { data } = await supabase.from('bank_accounts').select('id, account_name, bank_name, account_number, alias').eq('is_active', true);
+    const { data } = await supabase.from('bank_accounts').select('id, account_name, bank_name, account_number, alias, currency').eq('is_active', true);
     setBankAccounts(data || []);
   };
 
@@ -786,7 +787,9 @@ export function ReceiptVoucherManager({ canManage }: ReceiptVoucherManagerProps)
                 >
                   <option value="">Select account</option>
                   {bankAccounts.map(b => (
-                    <option key={b.id} value={b.id}>{b.alias || `${b.bank_name} - ${b.account_name}`}</option>
+                    <option key={b.id} value={b.id}>
+                      {b.alias || `${b.bank_name} - ${b.account_name}`} ({b.currency || 'IDR'})
+                    </option>
                   ))}
                 </select>
               </div>

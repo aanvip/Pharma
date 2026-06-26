@@ -284,6 +284,16 @@ export function PaymentVoucherManager({ canManage, prefillInvoice, onPrefillCons
   const invoiceCurrency = pendingInvoices.length > 0 ? (pendingInvoices[0].currency || 'IDR') : 'IDR';
   const bankCurrency = formData.payment_currency;
   const isCrossCurrency = pendingInvoices.length > 0 && invoiceCurrency !== bankCurrency;
+
+  // Bank accounts split by whether they match the invoice currency
+  const matchingBankAccounts = bankAccounts.filter(b => (b.currency || 'IDR') === invoiceCurrency);
+  const otherBankAccounts   = bankAccounts.filter(b => (b.currency || 'IDR') !== invoiceCurrency);
+
+  // True when user picked a mismatched bank but hasn't set an exchange rate
+  const currencyMismatchWithoutRate =
+    isCrossCurrency &&
+    selectedBank !== null &&
+    formData.exchange_rate <= 1;
   const invoiceInIDR = isCrossCurrency ? formData.amount * formData.exchange_rate : formData.amount;
   const bankCharge = formData.bank_charge || 0;
   const totalBankDebit = invoiceInIDR + bankCharge;
@@ -400,6 +410,20 @@ export function PaymentVoucherManager({ canManage, prefillInvoice, onPrefillCons
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ── Currency / bank account guard ──────────────────────────────
+    if (currencyMismatchWithoutRate) {
+      alert(
+        `Currency mismatch: the invoice is in ${invoiceCurrency} but the selected bank account is ${selectedBank?.currency || 'IDR'}.\n\n` +
+        `Either select a ${invoiceCurrency} bank account, or enter the exchange rate in the Currency Conversion panel.`
+      );
+      return;
+    }
+    if (isCrossCurrency && formData.exchange_rate <= 1) {
+      alert(`Cross-currency payment requires an exchange rate greater than 1. Please enter the rate in the Currency Conversion panel.`);
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
@@ -653,7 +677,9 @@ export function PaymentVoucherManager({ canManage, prefillInvoice, onPrefillCons
                 <label className="block text-xs font-medium text-gray-600 mb-1">
                   Bank Account
                   {selectedBank && (
-                    <span className="ml-1.5 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold">
+                    <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      isCrossCurrency ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                    }`}>
                       {selectedBank.currency || 'IDR'}
                     </span>
                   )}
@@ -661,15 +687,54 @@ export function PaymentVoucherManager({ canManage, prefillInvoice, onPrefillCons
                 <select
                   value={formData.bank_account_id}
                   onChange={(e) => setFormData({ ...formData, bank_account_id: e.target.value })}
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg"
+                  className={`w-full px-2.5 py-1.5 text-sm border rounded-lg ${
+                    currencyMismatchWithoutRate
+                      ? 'border-red-400 bg-red-50 focus:ring-red-300'
+                      : isCrossCurrency
+                        ? 'border-amber-400 focus:ring-amber-300'
+                        : 'border-gray-300'
+                  }`}
                 >
                   <option value="">Select account</option>
-                  {bankAccounts.map(b => (
-                    <option key={b.id} value={b.id}>
-                      {b.alias || `${b.bank_name} - ${b.account_name}`} ({b.currency || 'IDR'})
-                    </option>
-                  ))}
+                  {pendingInvoices.length > 0 ? (
+                    <>
+                      {matchingBankAccounts.length > 0 && (
+                        <optgroup label={`✓ ${invoiceCurrency} accounts (recommended)`}>
+                          {matchingBankAccounts.map(b => (
+                            <option key={b.id} value={b.id}>
+                              {b.alias || `${b.bank_name} - ${b.account_name}`} ({b.currency || 'IDR'})
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {otherBankAccounts.length > 0 && (
+                        <optgroup label="⚠ Other currency — exchange rate required">
+                          {otherBankAccounts.map(b => (
+                            <option key={b.id} value={b.id}>
+                              {b.alias || `${b.bank_name} - ${b.account_name}`} ({b.currency || 'IDR'})
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </>
+                  ) : (
+                    bankAccounts.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.alias || `${b.bank_name} - ${b.account_name}`} ({b.currency || 'IDR'})
+                      </option>
+                    ))
+                  )}
                 </select>
+                {currencyMismatchWithoutRate && (
+                  <p className="mt-1 text-xs text-red-600 font-medium">
+                    ✗ {selectedBank?.currency} account selected for a {invoiceCurrency} invoice — enter an exchange rate below, or choose a {invoiceCurrency} account.
+                  </p>
+                )}
+                {isCrossCurrency && !currencyMismatchWithoutRate && (
+                  <p className="mt-1 text-xs text-amber-700">
+                    Cross-currency: enter exchange rate in the panel below.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Reference No.</label>
