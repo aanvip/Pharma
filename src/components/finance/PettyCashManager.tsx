@@ -1302,9 +1302,14 @@ export function PettyCashManager({ canManage, onNavigateToFundTransfer, initialV
                 onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 required
-                min="0"
-                step="0.01"
+                min="1"
+                step="1"
               />
+              {formData.amount > 0 && formData.amount < 100 && (
+                <p className="mt-1 text-xs text-amber-700 font-medium">
+                  Warning: amount is Rp {formData.amount} — did you mean Rp {(formData.amount * 1000).toLocaleString('id-ID')}?
+                </p>
+              )}
             </div>
           </div>
 
